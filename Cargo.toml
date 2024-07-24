@@ -15,7 +15,8 @@ name = "zero2prod"
 
 [dependencies]
 actix-web = "4"
-tokio = {version="1", features = ["macros", "rt-multi-thread"]}
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+serde = { version = "1", features = ["derive"] }
 
 # used exclusively for testing, not compiled in release binary
 [dev-dependencies]
