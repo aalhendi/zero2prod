@@ -32,3 +32,15 @@ cargo install --version="~0.7" sqlx-cli --no-default-features --features rustls,
 ### Intall [PostgreSQL](https://www.postgresql.org/)
 
 The DB of choice for this project.
+
+### Install [Bunyan](https://crates.io/crates/bunyan)
+
+```sh
+cargo install --locked bunyan
+```
+
+## To Run The App
+
+```sh
+cargo run | bunyan
+```

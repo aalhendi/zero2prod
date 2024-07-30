@@ -1,6 +1,7 @@
 use actix_web::{web, HttpResponse};
 use chrono::Utc;
 use sqlx::PgPool;
+use tracing::Instrument;
 use uuid::Uuid;
 
 #[derive(serde::Deserialize)]
@@ -19,6 +20,19 @@ pub async fn subscribe(
     // Retrieved from app state
     pool: web::Data<PgPool>,
 ) -> HttpResponse {
+    let request_id = Uuid::new_v4();
+    // Associating structured info to our span as collection of KV pairs. `%` tells `tracing::` to use the `Display` implementation of the value.
+    let request_span = tracing::info_span!("Adding a new subscriber.", %request_id, subscriber_email = %form.email, subscriber_name = %form.name);
+    // NOTE(aalhendi): Careful what you log. i.e. PII must follow GDPR for EU services.
+    tracing::info!(
+        "request id {request_id} - Adding '{email}' '{name}' as a new subscriber.",
+        email = form.email,
+        name = form.name
+    );
+
+    let _request_span_guard = request_span.enter();
+
+    let query_span = tracing::info_span!("Saving subscriber details in the database.");
     match sqlx::query!(
         r#"
         INSERT INTO subscriptions (id, email, name, subscribed_at)
@@ -31,11 +45,13 @@ pub async fn subscribe(
     )
     // `get_ref` to get immutable ref to `PgConnection` wrapped by `web::Data`.
     .execute(pool.get_ref())
+    // Instrument before await. This enters span every time its polled by executer and and exits it every time its parked to not mix up spans when juggling async tasks.
+    .instrument(query_span)
     .await
     {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => {
-            println!("Failed to execute query: {e}");
+            tracing::error!("Failed to execute query: {e:?}");
             HttpResponse::InternalServerError().finish()
         }
     }
