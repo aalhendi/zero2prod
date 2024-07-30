@@ -42,5 +42,5 @@ cargo install --locked bunyan
 ## To Run The App
 
 ```sh
-cargo run | bunyan
+TEST_LOG=true RUST_LOG=debug cargo run | bunyan
 ```

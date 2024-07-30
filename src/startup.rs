@@ -1,7 +1,8 @@
 use std::net::TcpListener;
 
-use actix_web::{dev::Server, middleware::Logger, web, App, HttpServer};
+use actix_web::{dev::Server, web, App, HttpServer};
 use sqlx::PgPool;
+use tracing_actix_web::TracingLogger;
 
 use crate::routes;
 
@@ -17,7 +18,8 @@ pub fn run(listener: TcpListener, db_pool: PgPool) -> Result<Server, std::io::Er
     let server = HttpServer::new(move || {
         // all app logic lives in App: routing, middlewares, request handlers, etc
         App::new()
-            .wrap(Logger::default())
+            // Using drop in replacement for actix::middleware::Logger that knows how to handle the tracing crate (tracing-aware)
+            .wrap(TracingLogger::default())
             // short for Route::new().guard(guard::Get())
             // a.k.a. request should be passed to handler if and only if its HTTP method is GET.
             .route(

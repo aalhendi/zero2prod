@@ -1,11 +1,28 @@
 use std::net::TcpListener;
 
+use once_cell::sync::Lazy;
+use secrecy::ExposeSecret;
 use sqlx::{Executor, PgPool};
 use uuid::Uuid;
 use zero2prod::{
     configuration::{get_configuration, DatabaseSettings},
     startup,
+    telemetry::{get_subscriber, init_subscriber},
 };
+
+// TODO(aalhendi): Use some std:: methods. I don't think theres a need for the once_cell crate anymore.
+static TRACING: Lazy<()> = Lazy::new(|| {
+    let default_filter_level = String::from("info");
+    let subscriber_name = String::from("test");
+    // Can't assign subscriber to var and call `init_subscriber()` once becaue of opaque types. We can get around this with `Dyn` and `Box` but I'd rather not.
+    if std::env::var("TEST_LOG").is_ok() {
+        let subscriber = get_subscriber(subscriber_name, default_filter_level, std::io::stdout);
+        init_subscriber(subscriber);
+    } else {
+        let subscriber = get_subscriber(subscriber_name, default_filter_level, std::io::sink);
+        init_subscriber(subscriber);
+    };
+});
 
 pub struct TestApp {
     pub address: String,
@@ -15,6 +32,10 @@ pub struct TestApp {
 // This is done to fully decouple test suite from underlying implementation details.
 // We test the exact same way a user would (black box testing) to avoid user-visible regression
 async fn spawn_app() -> TestApp {
+    // The first time `initialize` is invoked the code in `TRACING` is executed.
+    // All other invocations will instead skip execution.
+    Lazy::force(&TRACING);
+
     // No need to propagate errors, we're running tests.
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind to random port");
     // Port 0 is special-cased at OS level. OS will scan for available port and bind app to it
@@ -44,7 +65,7 @@ async fn spawn_app() -> TestApp {
 
 pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
     // Create DB
-    let connection = PgPool::connect(&config.connection_string_without_db())
+    let connection = PgPool::connect(config.connection_string_without_db().expose_secret())
         .await
         .expect("Failed to conenct to Postgres.");
 
@@ -60,7 +81,7 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
         .expect("Failed to create database.");
 
     // Migrate DB
-    let connection_pool = PgPool::connect(&config.connection_string())
+    let connection_pool = PgPool::connect(config.connection_string().expose_secret())
         .await
         .expect("Failed to connect to Postgres.");
     sqlx::migrate!("./migrations")
