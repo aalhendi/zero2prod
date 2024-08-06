@@ -55,11 +55,20 @@ jobs:
           # This may be useful for ensuring reproducible builds, to use the exact same set of dependencies that were available when the package was published.
           # It may also be useful if a newer version of a dependency is published that no longer builds on your system, or has other problems
 
-      - name: Install postgresql-client
-        run: sudo apt-get update && sudo apt-get install postgresql-client -y
+      # - name: Install postgresql-client
+      #   run: sudo apt-get update && sudo apt-get install postgresql-client -y
 
-      - name: Migrate database
-        run: SKIP_DOCKER=true ./scripts/init_db.sh
+      # - name: Migrate database
+      #   run: SKIP_DOCKER=true ./scripts/init_db.sh
+
+      - name: Install postgres & Migrate database
+        run: |
+          sudo apt-get install libpq-dev -y
+          SKIP_DOCKER=true ./scripts/init_db.sh
+
+      - name: Check sqlx-data.json is up-to-date
+        run: |
+          cargo sqlx prepare --workspace --check
 
       - name: Run tests
         run: cargo test

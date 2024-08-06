@@ -29,6 +29,13 @@ Checks against [RustSec/advisory-db](https://github.com/RustSec/advisory-db) for
 cargo install --version="~0.7" sqlx-cli --no-default-features --features rustls,postgres
 ```
 
+We run a prepare command to generate query metadata to support offline compile-time verification.
+A check for this is automatically run within the CI pipeline.
+
+```sh
+cargo sqlx prepare --workspace
+```
+
 ### Intall [PostgreSQL](https://www.postgresql.org/)
 
 The DB of choice for this project.
@@ -43,4 +50,10 @@ cargo install --locked bunyan
 
 ```sh
 TEST_LOG=true RUST_LOG=debug cargo run | bunyan
+```
+
+## Building An Image
+
+```sh
+docker build --tag zero2prod --file Dockerfile .
 ```
