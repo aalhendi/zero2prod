@@ -23,17 +23,22 @@ impl AsRef<str> for SubscriberEmail {
 mod tests {
     use super::SubscriberEmail;
     use claims::assert_err;
-    use fake::faker::internet::en::SafeEmail;
-    // `Fake` trait exposes `.fake` method on `SafeEmail`
-    use fake::Fake;
+    use fake::locales::Data;
 
     #[derive(Debug, Clone)]
+    // Custom type. Not using String type as input, since will get all sorts of garbage which will fail validation.
     struct ValidEmailFixture(pub String);
 
     impl quickcheck::Arbitrary for ValidEmailFixture {
-        fn arbitrary<G: quickcheck::Gen>(g: &mut G) -> Self {
-            let email = SafeEmail().fake_with_rng(g);
-            Self(email)
+        fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+            // NOTE(aalhendi): reimplimentation of fake::faker::internet::en::SafeEmail
+            // `Taken from impl<L: Data + Copy> Dummy<SafeEmail<L>> for String` from <https://docs.rs/fake/2.9.2/src/fake/faker/impls/internet.rs.html#12>
+            // let email = SafeEmail().fake_with_rng(g);
+
+            // Choose a name from list of EN first names.
+            let username = g.choose(fake::locales::EN::NAME_FIRST_NAME).unwrap();
+            let domain = g.choose(&["com", "net", "org"]).unwrap();
+            Self(format!("{username}@example.{domain}"))
         }
     }
 
