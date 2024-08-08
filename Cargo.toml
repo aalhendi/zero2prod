@@ -14,7 +14,7 @@ path = "src/main.rs"
 name = "zero2prod"
 
 [dependencies]
-config = "0.13"
+config = { git = "https://github.com/mehcode/config-rs", rev = "e3c1d0b" }
 serde-aux = "4"
 actix-web = "4"
 tracing = { version = "0.1", features = ["log"] }
