@@ -15,6 +15,7 @@ name = "zero2prod"
 
 [dependencies]
 config = "0.13"
+serde-aux = "4"
 actix-web = "4"
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }
