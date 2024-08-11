@@ -5,6 +5,7 @@ use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use zero2prod::{
     configuration::{get_configuration, DatabaseSettings},
+    email_client::EmailClient,
     startup,
     telemetry::{get_subscriber, init_subscriber},
 };
@@ -49,7 +50,20 @@ async fn spawn_app() -> TestApp {
     // Postgres instance is only used for test purposes and can easily be restarted.
     let connection_pool = configure_database(&configuration.database).await;
 
-    let server = startup::run(listener, connection_pool.clone()).expect("Failed to bind address");
+    let sender_email = configuration
+        .email_client
+        .sender()
+        .expect("Invalid sender email address.");
+    let base_url = reqwest::Url::parse(&configuration.email_client.base_url)
+        .expect("Failed to parse base URL.");
+    let email_client = EmailClient::new(
+        base_url,
+        sender_email,
+        configuration.email_client.authorization_token,
+    );
+
+    let server = startup::run(listener, connection_pool.clone(), email_client)
+        .expect("Failed to bind address");
     // Launch server as background task. We don't need the handle, so its discarded.
     #[allow(clippy::let_underscore_future)]
     let _ = tokio::spawn(server);

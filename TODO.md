@@ -7,3 +7,4 @@
 - Build something like a spec.yaml manifest for deployments. Inject environment vars
 - Update validator crate
 - Consider proptest crate for property-based testing.
+- Consider switching to figment crate for configurations
