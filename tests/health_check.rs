@@ -60,6 +60,7 @@ async fn spawn_app() -> TestApp {
         base_url,
         sender_email,
         configuration.email_client.authorization_token,
+        std::time::Duration::from_millis(200),
     );
 
     let server = startup::run(listener, connection_pool.clone(), email_client)
