@@ -57,3 +57,17 @@ TEST_LOG=true RUST_LOG=debug cargo run | bunyan
 ```sh
 docker build --tag zero2prod --file Dockerfile .
 ```
+
+### Notes
+
+Since tests are run as part of a single binary, you may run into some problems with too many open files in Linux (default 1024).
+There is a limit to the number of maximum number of open file descriptors (including sockets) for each process.
+
+```sh
+thread 'actix-rt:worker' panicked at
+'Can not create Runtime: Os { code: 24, kind: Other, message: "Too many open files" }',
+```
+
+```sh
+ulimit -n <number>
+```

@@ -119,7 +119,7 @@ mod tests {
         SubscriberEmail::parse(SafeEmail().fake()).unwrap()
     }
 
-    /// Get a test instance of `EmailClient`.
+    /// Get a test instance of `EmailClient` with custom timeout.
     fn email_client(base_url: reqwest::Url) -> EmailClient {
         EmailClient::new(
             base_url,
