@@ -24,6 +24,7 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
+    pub email_server: wiremock::MockServer,
 }
 
 impl TestApp {
@@ -36,6 +37,14 @@ impl TestApp {
             .await
             .expect("Failed to execute request.")
     }
+
+    pub async fn something(&self) {
+        wiremock::Mock::given(wiremock::matchers::path("/email"))
+            .and(wiremock::matchers::method("POST"))
+            .respond_with(wiremock::ResponseTemplate::new(200))
+            .mount(&self.email_server)
+            .await;
+    }
 }
 
 // This is done to fully decouple test suite from underlying implementation details.
@@ -45,12 +54,17 @@ pub async fn spawn_app() -> TestApp {
     // All other invocations will instead skip execution.
     Lazy::force(&TRACING);
 
+    // Launch a mock server to stand in for Postmark's API
+    let email_server = wiremock::MockServer::start().await;
+
     let configuration = {
         let mut c = get_configuration().expect("Failed to read configuration.");
         // Random DB name. This is for test isolation
         c.database.database_name = Uuid::new_v4().to_string();
         // Port 0 is special-cased at OS level. OS will scan for available port and bind app to it
         c.application.port = 0;
+        // Use mock server as email API
+        c.email_client.base_url = email_server.uri();
         c
     };
 
@@ -75,6 +89,7 @@ pub async fn spawn_app() -> TestApp {
         // NOTE(aalhendi): No clean-up step. Logical DBs are not being deleted.
         // Postgres instance is only used for test purposes and can easily be restarted.
         db_pool: get_connection_pool(configuration.database),
+        email_server,
     }
 }
 
