@@ -41,7 +41,12 @@ impl Application {
         );
         let listener = TcpListener::bind(address)?;
         let port = listener.local_addr().unwrap().port();
-        let server = run(listener, connection_pool, email_client)?;
+        let server = run(
+            listener,
+            connection_pool,
+            email_client,
+            configuration.application.base_url,
+        )?;
 
         Ok(Self { port, server })
     }
@@ -61,10 +66,15 @@ pub fn get_connection_pool(configuration: DatabaseSettings) -> PgPool {
     PgPoolOptions::new().connect_lazy_with(configuration.with_db())
 }
 
+/// Wrapper type in order to retrieve the URL
+/// Since actix-web retrival from context is type-based, using raw `String` causes conflicts.
+pub struct ApplicationBaseUrl(pub String);
+
 fn run(
     listener: TcpListener,
     db_pool: PgPool,
     email_client: EmailClient,
+    base_url: String,
 ) -> Result<Server, std::io::Error> {
     // Handles all *transport level* concerns
     /*
@@ -78,6 +88,7 @@ fn run(
     // Wrap the email client in a smart pointer. Used rather than normal clone on EmailClient to avoid additional memory allocations.
     // reqwest::Client uses Arc<T> internally and does not need this. However, our additional fields do.
     let email_client = web::Data::new(email_client);
+    let base_url = web::Data::new(ApplicationBaseUrl(base_url));
     let server = HttpServer::new(move || {
         // all app logic lives in App: routing, middlewares, request handlers, etc
         App::new()
@@ -93,12 +104,17 @@ fn run(
                 "/subscriptions",
                 web::post().to(routes::subscriptions::subscribe),
             )
+            .route(
+                "/subscriptions/confirm",
+                web::get().to(routes::subscriptions_confirm::confirm),
+            )
             // Register the connection ptr copy as part of app state
             .app_data(db_pool.clone())
             // Client registered as part of app state to be able to reuse it across multiple requests.
             // reqwest::Client utilizes connection pooling to avoid socket exhaustion.
             // When cloning, we clone a pointer to the existing connection pool rather than making a new pool.
             .app_data(email_client.clone())
+            .app_data(base_url.clone())
     })
     .listen(listener)?
     .run();
