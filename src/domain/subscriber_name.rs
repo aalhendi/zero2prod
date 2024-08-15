@@ -6,7 +6,7 @@ const NAME_MAX_LENGTH: usize = 256;
 pub struct SubscriberName(String);
 
 impl SubscriberName {
-    /// Returns `true` if input satisfies all name validation constraints, `false` otherwise.
+    /// Returns `Self` if input satisfies all name validation constraints, Error otherwise.
     pub fn parse(s: String) -> Result<Self, String> {
         let is_empty_or_whitespace = s.trim().is_empty();
         // Use extended grapheme definition set (recommended)

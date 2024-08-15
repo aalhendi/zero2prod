@@ -1,11 +1,10 @@
 use actix_web::{web, HttpResponse};
 use chrono::Utc;
-use rand::Rng;
 use sqlx::{Executor, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 use crate::{
-    domain::{NewSubscriber, SubscriberEmail, SubscriberName},
+    domain::{NewSubscriber, SubscriberEmail, SubscriberName, SubscriptionToken},
     email_client::EmailClient,
     startup::ApplicationBaseUrl,
 };
@@ -60,11 +59,11 @@ pub async fn subscribe(
     };
 
     let subscriber_id = match insert_subscriber(&mut transaction, &new_subscriber).await {
-        Ok(subscirber_id) => subscirber_id,
+        Ok(subscriber_id) => subscriber_id,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
 
-    let subscription_token = generate_subscription_token();
+    let subscription_token = SubscriptionToken::default();
     if store_token(&mut transaction, subscriber_id, &subscription_token)
         .await
         .is_err()
@@ -127,12 +126,12 @@ async fn insert_subscriber(
 pub async fn store_token(
     transaction: &mut Transaction<'_, Postgres>,
     subscriber_id: Uuid,
-    subscription_token: &str,
+    subscription_token: &SubscriptionToken,
 ) -> Result<(), sqlx::Error> {
     let query = sqlx::query!(
         r#"INSERT INTO subscription_tokens (subscription_token, subscriber_id)
     VALUES ($1, $2)"#,
-        subscription_token,
+        subscription_token.as_ref(),
         subscriber_id
     );
 
@@ -153,11 +152,13 @@ pub async fn send_confirmation_email(
     email_client: &EmailClient,
     new_subscriber: NewSubscriber,
     base_url: &str,
-    subscription_token: &str,
+    subscription_token: &SubscriptionToken,
 ) -> Result<(), reqwest::Error> {
     // Build confirmation link with a dynamic root
-    let confirmation_link =
-        format!("{base_url}/subscriptions/confirm?subscription_token={subscription_token}");
+    let confirmation_link = format!(
+        "{base_url}/subscriptions/confirm?subscription_token={subscription_token}",
+        subscription_token = subscription_token.as_ref()
+    );
     let html_body = format!(
         "Welcome to our newsletter!<br />\
                 Click <a href=\"{confirmation_link}\">here</a> to confirm your subscription.",
@@ -168,13 +169,4 @@ pub async fn send_confirmation_email(
     email_client
         .send_email(new_subscriber.email, "Welcome!", &html_body, &plain_body)
         .await
-}
-
-/// Generate a random 25-characters-long case-sensitive subscription token.
-fn generate_subscription_token() -> String {
-    let mut rng = rand::thread_rng();
-    std::iter::repeat_with(|| rng.sample(rand::distributions::Alphanumeric))
-        .map(char::from)
-        .take(25)
-        .collect()
 }

@@ -2,6 +2,8 @@ use actix_web::{web, HttpResponse};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::domain::SubscriptionToken;
+
 #[derive(serde::Deserialize)]
 pub struct Parameters {
     subscription_token: String,
@@ -12,7 +14,12 @@ pub async fn confirm(parameters: web::Query<Parameters>, pool: web::Data<PgPool>
     // Fn param of type web::Query<Parameter> to confirm is enough to instruct actix-web to only call handler if extraction was successful.
     // If extraction failed, 400 Bad Request is automatically returned to the caller.
 
-    let id = match get_subscriber_id_from_token(&pool, &parameters.subscription_token).await {
+    let subscription_token = match SubscriptionToken::parse(parameters.subscription_token.clone()) {
+        Ok(token) => token,
+        Err(_) => return HttpResponse::BadRequest().finish(),
+    };
+
+    let id = match get_subscriber_id_from_token(&pool, &subscription_token).await {
         Ok(id) => id,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
@@ -46,12 +53,12 @@ pub async fn confirm_subscriber(pool: &PgPool, subscriber_id: Uuid) -> Result<()
 #[tracing::instrument(name = "Get subscriber_id from token", skip(subscription_token, pool))]
 pub async fn get_subscriber_id_from_token(
     pool: &PgPool,
-    subscription_token: &str,
+    subscription_token: &SubscriptionToken,
 ) -> Result<Option<Uuid>, sqlx::Error> {
     let result = sqlx::query!(
         "SELECT subscriber_id FROM subscription_tokens \
     WHERE subscription_token = $1",
-        subscription_token,
+        subscription_token.as_ref(),
     )
     .fetch_optional(pool)
     .await
