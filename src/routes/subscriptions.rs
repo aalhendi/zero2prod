@@ -1,4 +1,5 @@
 use actix_web::{web, HttpResponse};
+use anyhow::Context;
 use chrono::Utc;
 use sqlx::{Executor, PgPool, Postgres, Transaction};
 use uuid::Uuid;
@@ -51,37 +52,23 @@ pub async fn subscribe(
     // `?` operator transparently invokes the `Into` trait
     let new_subscriber = form.0.try_into().map_err(SubscribeError::ValidationError)?;
 
-    let mut transaction = pool.begin().await.map_err(|e| {
-        SubscribeError::UnexpectedError(
-            Box::new(e),
-            String::from("Failed to acquire a Postgres connection from the pool"),
-        )
-    })?;
+    let mut transaction = pool
+        .begin()
+        .await
+        .context("Failed to acquire a Postgres connection from the pool")?;
     let subscriber_id = insert_subscriber(&mut transaction, &new_subscriber)
         .await
-        .map_err(|e| {
-            SubscribeError::UnexpectedError(
-                Box::new(e),
-                String::from("Failed to insert new subscriber in the database."),
-            )
-        })?;
+        .context("Failed to insert new subscriber in the database.")?;
     let subscription_token = SubscriptionToken::default();
 
     store_token(&mut transaction, subscriber_id, &subscription_token)
         .await
-        .map_err(|e| {
-            SubscribeError::UnexpectedError(
-                Box::new(e),
-                String::from("Failed to store the confirmation token for a new subscriber."),
-            )
-        })?;
+        .context("Failed to store the confirmation token for a new subscriber.")?;
 
-    transaction.commit().await.map_err(|e| {
-        SubscribeError::UnexpectedError(
-            Box::new(e),
-            String::from("Failed to commit SQL transaction to store a new subscriber."),
-        )
-    })?;
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit SQL transaction to store a new subscriber.")?;
 
     send_confirmation_email(
         &email_client,
@@ -90,12 +77,7 @@ pub async fn subscribe(
         &subscription_token,
     )
     .await
-    .map_err(|e| {
-        SubscribeError::UnexpectedError(
-            Box::new(e),
-            String::from("Failed to send a confirmation email."),
-        )
-    })?;
+    .context("Failed to send a confirmation email.")?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -121,10 +103,7 @@ async fn insert_subscriber(
         Utc::now()
     );
 
-    transaction.execute(query).await.map_err(|e| {
-        tracing::error!("Failed to execute query: {e:?}");
-        e
-    })?;
+    transaction.execute(query).await?;
 
     Ok(subscriber_id)
 }
@@ -145,10 +124,8 @@ pub async fn store_token(
         subscriber_id
     );
 
-    transaction.execute(query).await.map_err(|e| {
-        tracing::error!("Failed to execute query: {e:?}");
-        StoreTokenError(e) // Wrap underlying error
-    })?;
+    // Wrap underlying error
+    transaction.execute(query).await.map_err(StoreTokenError)?;
     Ok(())
 }
 
@@ -226,9 +203,10 @@ pub enum SubscribeError {
     #[error("{0}")]
     // String does not implement `Error` - we consider it the root cause
     ValidationError(String),
-    #[error("{1}")]
-    // delegates `Display`'s and `source`'s impl to type wrapped by `UnexpectedError`.
-    UnexpectedError(#[source] Box<dyn std::error::Error>, String),
+    #[error(transparent)]
+    // anyhow::Context exposes `.context()` which converts error to anyhow::Error
+    // and allows additional context around caller intentions
+    UnexpectedError(#[from] anyhow::Error),
 }
 
 // Use custom `Debug` impl for nice report using error source chain
@@ -242,7 +220,7 @@ impl actix_web::ResponseError for SubscribeError {
     fn status_code(&self) -> reqwest::StatusCode {
         match self {
             SubscribeError::ValidationError(_) => reqwest::StatusCode::BAD_REQUEST,
-            SubscribeError::UnexpectedError(_, _) => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+            SubscribeError::UnexpectedError(_) => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
     // fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {}

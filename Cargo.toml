@@ -33,6 +33,7 @@ validator = "0.16"
 # TODO(aalhendi): Upgrade rand crate?
 rand = { version = "0.8", features=["std_rng"] }
 thiserror = "1"
+anyhow = "1"
 
 [dependencies.sqlx]
 version = "0.7"
