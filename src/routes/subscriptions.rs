@@ -125,7 +125,7 @@ pub async fn store_token(
     );
 
     // Wrap underlying error
-    transaction.execute(query).await.map_err(StoreTokenError)?;
+    transaction.execute(query).await.map_err(StoreTokenError)?; 
     Ok(())
 }
 
@@ -182,8 +182,9 @@ impl std::error::Error for StoreTokenError {
 }
 
 // TODO(aalhendi): #![feature(error_iter)]
+// TODO(aalhendi): move to utils?
 // err.sources()
-fn error_chain_fmt(
+pub fn error_chain_fmt(
     e: &impl std::error::Error,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {

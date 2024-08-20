@@ -1,8 +1,10 @@
 use actix_web::{web, HttpResponse};
+use anyhow::Context;
 use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::domain::SubscriptionToken;
+use crate::routes::subscriptions::error_chain_fmt;
 
 #[derive(serde::Deserialize)]
 pub struct Parameters {
@@ -10,29 +12,26 @@ pub struct Parameters {
 }
 
 #[tracing::instrument(name = "Confirm a pending subscriber", skip(parameters))]
-pub async fn confirm(parameters: web::Query<Parameters>, pool: web::Data<PgPool>) -> HttpResponse {
+pub async fn confirm(
+    parameters: web::Query<Parameters>,
+    pool: web::Data<PgPool>,
+) -> Result<HttpResponse, ConfirmError> {
     // Fn param of type web::Query<Parameter> to confirm is enough to instruct actix-web to only call handler if extraction was successful.
     // If extraction failed, 400 Bad Request is automatically returned to the caller.
 
-    let subscription_token = match SubscriptionToken::parse(parameters.subscription_token.clone()) {
-        Ok(token) => token,
-        Err(_) => return HttpResponse::BadRequest().finish(),
-    };
+    let subscription_token = SubscriptionToken::parse(parameters.subscription_token.clone())
+        .map_err(ConfirmError::ValidationError)?;
 
-    let id = match get_subscriber_id_from_token(&pool, &subscription_token).await {
-        Ok(id) => id,
-        Err(_) => return HttpResponse::InternalServerError().finish(),
-    };
-    match id {
-        // Non-existing token!
-        None => HttpResponse::Unauthorized().finish(),
-        Some(subscriber_id) => {
-            if confirm_subscriber(&pool, subscriber_id).await.is_err() {
-                return HttpResponse::InternalServerError().finish();
-            }
-            HttpResponse::Ok().finish()
-        }
-    }
+    let subscriber_id = get_subscriber_id_from_token(&pool, &subscription_token)
+        .await
+        .context("Failed to fetch subscriber id from token.")?
+        .ok_or(ConfirmError::UnknownToken)?;
+
+    confirm_subscriber(&pool, subscriber_id)
+        .await
+        .context("Failed to update subscriber status to `confirmed`.")?;
+
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[tracing::instrument(name = "Mark subscriber as confirmed", skip(subscriber_id, pool))]
@@ -67,4 +66,32 @@ pub async fn get_subscriber_id_from_token(
         e
     })?;
     Ok(result.map(|r| r.subscriber_id))
+}
+
+#[derive(thiserror::Error)]
+pub enum ConfirmError {
+    #[error("No subscriber associated with the provided token.")]
+    UnknownToken,
+    #[error("{0}")]
+    ValidationError(String),
+    #[error(transparent)]
+    UnexpectedError(#[from] anyhow::Error),
+}
+
+// Use custom `Debug` impl for nice report using error source chain
+impl std::fmt::Debug for ConfirmError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        error_chain_fmt(self, f)
+    }
+}
+
+impl actix_web::ResponseError for ConfirmError {
+    fn status_code(&self) -> reqwest::StatusCode {
+        match self {
+            ConfirmError::UnknownToken => reqwest::StatusCode::UNAUTHORIZED,
+            ConfirmError::ValidationError(_) => reqwest::StatusCode::BAD_REQUEST,
+            ConfirmError::UnexpectedError(_) => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+    // fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {}
 }
