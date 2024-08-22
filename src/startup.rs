@@ -108,6 +108,10 @@ fn run(
                 "/subscriptions/confirm",
                 web::get().to(routes::subscriptions_confirm::confirm),
             )
+            .route(
+                "/newsletters",
+                web::post().to(routes::newsletters::publish_newsletter),
+            )
             // Register the connection ptr copy as part of app state
             .app_data(db_pool.clone())
             // Client registered as part of app state to be able to reuse it across multiple requests.

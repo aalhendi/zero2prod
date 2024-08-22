@@ -101,9 +101,7 @@ async fn cliocking_on_the_confirmation_link_fails_if_there_is_a_fatal_database_e
         .unwrap();
 
     // Act
-    let response = reqwest::get(confirmation_links.html)
-        .await
-        .unwrap();
+    let response = reqwest::get(confirmation_links.html).await.unwrap();
 
     // Assert
     assert_eq!(response.status().as_u16(), 500);

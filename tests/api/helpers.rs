@@ -45,6 +45,15 @@ impl TestApp {
             .expect("Failed to execute request.")
     }
 
+    pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
+        reqwest::Client::new()
+            .post(&format!("{address}/newsletters", address = &self.address))
+            .json(&body)
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
     /// Extract confirmation links embedded in a request to the email API.
     pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
         // Parse the body as JSON, starting from raw bytes

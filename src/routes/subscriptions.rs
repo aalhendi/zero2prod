@@ -125,7 +125,7 @@ pub async fn store_token(
     );
 
     // Wrap underlying error
-    transaction.execute(query).await.map_err(StoreTokenError)?; 
+    transaction.execute(query).await.map_err(StoreTokenError)?;
     Ok(())
 }
 
@@ -154,7 +154,7 @@ pub async fn send_confirmation_email(
         "Welcome to our newsletter!\nVisit {confirmation_link} to confirm your subscription.",
     );
     email_client
-        .send_email(new_subscriber.email, "Welcome!", &html_body, &plain_body)
+        .send_email(&new_subscriber.email, "Welcome!", &html_body, &plain_body)
         .await
 }
 
