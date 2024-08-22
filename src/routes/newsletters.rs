@@ -2,7 +2,7 @@ use actix_web::{http::header::HeaderMap, web, HttpResponse};
 use anyhow::Context;
 use base64::Engine;
 use reqwest::header::HeaderValue;
-use secrecy::Secret;
+use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
 
 use crate::{
@@ -26,8 +26,8 @@ struct ConfirmedSubscriber {
 }
 
 struct Credentials {
-    _username: String,
-    _password: Secret<String>,
+    username: String,
+    password: Secret<String>,
 }
 
 fn basic_authentication(headers: &HeaderMap) -> Result<Credentials, anyhow::Error> {
@@ -56,19 +56,49 @@ fn basic_authentication(headers: &HeaderMap) -> Result<Credentials, anyhow::Erro
         .ok_or_else(|| anyhow::anyhow!("A password must be provided in 'Basic' auth."))?
         .to_string();
     Ok(Credentials {
-        _username: username,
-        _password: Secret::new(password),
+        username,
+        password: Secret::new(password),
     })
 }
 
-#[tracing::instrument(name = "Publish newsletter", skip(body, pool, email_client))]
+async fn validate_credentials(
+    credentials: Credentials,
+    pool: &PgPool,
+) -> Result<uuid::Uuid, PublishError> {
+    let user_id = sqlx::query!(
+        r#"
+    SELECT user_id
+    FROM users
+    WHERE username = $1 AND password = $2
+    "#,
+        credentials.username,
+        credentials.password.expose_secret()
+    )
+    .fetch_optional(pool)
+    .await
+    .context("Failed to perform a query to validate auth credentials.")
+    .map_err(PublishError::UnexpectedError)?;
+    user_id
+        .map(|row| row.user_id)
+        .ok_or_else(|| anyhow::anyhow!("Invalid username or password."))
+        .map_err(PublishError::AuthError)
+}
+
+#[tracing::instrument(
+    name = "Publish a newsletter issue",
+    skip(body, pool, email_client, request),
+    fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
+    )]
 pub async fn publish_newsletter(
     body: web::Json<BodyData>,
     pool: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
     request: actix_web::HttpRequest,
 ) -> Result<HttpResponse, PublishError> {
-    let _credentials = basic_authentication(request.headers()).map_err(PublishError::AuthError)?;
+    let credentials = basic_authentication(request.headers()).map_err(PublishError::AuthError)?;
+    tracing::Span::current().record("username", tracing::field::display(&credentials.username));
+    let user_id = validate_credentials(credentials, &pool).await?;
+    tracing::Span::current().record("user_id", tracing::field::display(&user_id));
 
     let subscribers = get_confirmed_subscribers(&pool).await?;
 

@@ -46,10 +46,11 @@ impl TestApp {
     }
 
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
+        let (username, password) = self.test_user().await;
+
         reqwest::Client::new()
             .post(&format!("{address}/newsletters", address = &self.address))
-            // Random credentials
-            .basic_auth(Uuid::new_v4().to_string(), Some(Uuid::new_v4().to_string()))
+            .basic_auth(username, Some(password))
             .json(&body)
             .send()
             .await
@@ -80,6 +81,15 @@ impl TestApp {
         let plain_text = get_link(body["TextBody"].as_str().unwrap());
 
         ConfirmationLinks { html, plain_text }
+    }
+
+    /// Retrieve test user's username and password
+    pub async fn test_user(&self) -> (String, String) {
+        let row = sqlx::query!("SELECT username, password FROM users LIMIT 1",)
+            .fetch_one(&self.db_pool)
+            .await
+            .expect("Failed to create test users.");
+        (row.username, row.password)
     }
 }
 
@@ -121,14 +131,16 @@ pub async fn spawn_app() -> TestApp {
     // tokio::test spins up a new runtime at beginning of each test case & shuts it down at the end of each test case.
     // when a tokio runtime is shut down all tasks spawned on it are dropped.
 
-    TestApp {
+    let test_app = TestApp {
         address,
         port: application_port,
         // NOTE(aalhendi): No clean-up step. Logical DBs are not being deleted.
         // Postgres instance is only used for test purposes and can easily be restarted.
         db_pool: get_connection_pool(configuration.database),
         email_server,
-    }
+    };
+    add_test_user(&test_app.db_pool).await;
+    test_app
 }
 
 async fn configure_database(config: &DatabaseSettings) -> PgPool {
@@ -158,4 +170,17 @@ async fn configure_database(config: &DatabaseSettings) -> PgPool {
         .expect("Failed to migrate the database.");
 
     connection_pool
+}
+
+async fn add_test_user(pool: &PgPool) {
+    sqlx::query!(
+        "INSERT INTO users (user_id, username, password)
+    VALUES ($1, $2, $3)",
+        Uuid::new_v4(),
+        Uuid::new_v4().to_string(),
+        Uuid::new_v4().to_string(),
+    )
+    .execute(pool)
+    .await
+    .expect("Failed to create test users.");
 }
