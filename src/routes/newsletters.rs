@@ -68,10 +68,24 @@ async fn validate_credentials(
     credentials: Credentials,
     pool: &PgPool,
 ) -> Result<uuid::Uuid, PublishError> {
-    let (user_id, expected_password_hash) = get_stored_credentials(&credentials.username, pool)
-        .await
-        .map_err(PublishError::UnexpectedError)?
-        .ok_or_else(|| PublishError::AuthError(anyhow::anyhow!("Unknown username.")))?;
+    let mut user_id = None;
+    // Establish fallback password (with salt and load parameters)
+    // to perform same amount of work whether user exists or doesn't
+    let mut expected_password_hash = Secret::new(
+        "$argon2id$v=19$m=15000,t=2,p=1$\
+        gZiV/M1gPc22ElAH/Jh1Hw$\
+        CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno"
+            .to_string(),
+    );
+
+    if let Some((stored_user_id, stored_password_hash)) =
+        get_stored_credentials(&credentials.username, pool)
+            .await
+            .map_err(PublishError::UnexpectedError)?
+    {
+        user_id = Some(stored_user_id);
+        expected_password_hash = stored_password_hash;
+    }
 
     // Offload CPU-intensive workload (>1ms) to sperate threadpool.
     // These are reserved for blocking ops and don't interfere with scheduling of async tasks.
@@ -80,11 +94,12 @@ async fn validate_credentials(
     })
     .await
     .context("Failed to spawn blocking task.")
-    .map_err(PublishError::UnexpectedError)?
-    .context("Invalid password.")
-    .map_err(PublishError::AuthError)?;
+    .map_err(PublishError::UnexpectedError)??;
 
-    Ok(user_id)
+    // Only set to `Some` if found credentials in store.
+    // Even if fallback password ends up matching, never authenticate non-existing user.
+    // TODO(aalhendi): add unit test for fallback pw
+    user_id.ok_or_else(|| PublishError::AuthError(anyhow::anyhow!("Unknown username.")))
 }
 
 #[tracing::instrument(

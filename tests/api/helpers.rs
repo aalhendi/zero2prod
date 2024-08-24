@@ -43,11 +43,15 @@ impl TestUser {
     }
     async fn store(&self, pool: &PgPool) {
         let salt = SaltString::generate(&mut rand::thread_rng());
-        // We don't care about exact Argon2 params here, testing purposes only
-        let password_hash = Argon2::default()
-            .hash_password(self.password.as_bytes(), &salt)
-            .unwrap()
-            .to_string();
+        // Match parameters of the default password
+        let password_hash = Argon2::new(
+            argon2::Algorithm::Argon2id,
+            argon2::Version::V0x13,
+            argon2::Params::new(15000, 2, 1, None).unwrap(),
+        )
+        .hash_password(self.password.as_bytes(), &salt)
+        .unwrap()
+        .to_string();
         sqlx::query!(
             "INSERT INTO users (user_id, username, password_hash)
     VALUES ($1, $2, $3)",
@@ -66,7 +70,7 @@ pub struct TestApp {
     pub port: u16,
     pub db_pool: PgPool,
     pub email_server: wiremock::MockServer,
-    test_user: TestUser,
+    pub test_user: TestUser,
 }
 
 impl TestApp {
