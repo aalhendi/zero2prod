@@ -1,3 +1,4 @@
+[advisories]
 # Binary Protocol Misinterpretation caused by Truncating or Overflowing Casts
 # actix_web default limit for text extractor is 256kb, vulnerable if > 4GiB
 # TODO(aalhendi): eventually update whenever sqlx updates
