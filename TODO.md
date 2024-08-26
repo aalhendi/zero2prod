@@ -16,3 +16,4 @@
 ## Milestone Tasks
 
 - Verify properties of logs emitted by application
+- Hook OpenObserve
