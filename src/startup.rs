@@ -112,6 +112,9 @@ fn run(
                 "/newsletters",
                 web::post().to(routes::newsletters::publish_newsletter),
             )
+            .route("/", web::get().to(routes::home::home))
+            .route("/login", web::get().to(routes::login::get::login_form))
+            .route("/login", web::post().to(routes::login::post::login))
             // Register the connection ptr copy as part of app state
             .app_data(db_pool.clone())
             // Client registered as part of app state to be able to reuse it across multiple requests.
