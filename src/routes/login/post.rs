@@ -55,13 +55,13 @@ impl std::fmt::Debug for LoginError {
 }
 impl ResponseError for LoginError {
     fn status_code(&self) -> reqwest::StatusCode {
-        match self {
-            LoginError::UnexpectedError(_) => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
-            LoginError::AuthError(_) => reqwest::StatusCode::UNAUTHORIZED,
-        }
+        reqwest::StatusCode::SEE_OTHER
     }
 
-    // NOTE(aalhendi): Default impl of error_response populates body
-    // using Display repr of error returned by request handler.
-    // fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {}
+    fn error_response(&self) -> HttpResponse {
+        let encoded_error = urlencoding::Encoded::new(self.to_string());
+        HttpResponse::build(self.status_code())
+            .insert_header((LOCATION, format!("/login?error={encoded_error}")))
+            .finish()
+    }
 }
