@@ -1,6 +1,7 @@
 use std::net::TcpListener;
 
 use actix_web::{dev::Server, web, App, HttpServer};
+use secrecy::{ExposeSecret, Secret};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing_actix_web::TracingLogger;
 
@@ -9,6 +10,15 @@ use crate::{
     email_client::EmailClient,
     routes,
 };
+
+#[derive(Debug, Clone)]
+pub struct HmacSecret(Secret<String>);
+
+impl HmacSecret {
+    pub fn expose(&self) -> &str {
+        self.0.expose_secret()
+    }
+}
 
 pub struct Application {
     port: u16,
@@ -46,6 +56,7 @@ impl Application {
             connection_pool,
             email_client,
             configuration.application.base_url,
+            configuration.application.hmac_secret,
         )?;
 
         Ok(Self { port, server })
@@ -75,6 +86,7 @@ fn run(
     db_pool: PgPool,
     email_client: EmailClient,
     base_url: String,
+    hmac_secret: Secret<String>,
 ) -> Result<Server, std::io::Error> {
     // Handles all *transport level* concerns
     /*
@@ -122,6 +134,7 @@ fn run(
             // When cloning, we clone a pointer to the existing connection pool rather than making a new pool.
             .app_data(email_client.clone())
             .app_data(base_url.clone())
+            .app_data(web::Data::new(HmacSecret(hmac_secret.clone())))
     })
     .listen(listener)?
     .run();
