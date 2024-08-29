@@ -43,6 +43,7 @@ pub async fn login(
             };
             let response = HttpResponse::SeeOther()
                 .insert_header((LOCATION, "/login"))
+                // TODO(aalhendi): Harden cookies, http-only and with MAC.
                 .cookie(Cookie::new("_flash", e.to_string()))
                 .finish();
             Err(InternalError::from_response(e, response))
