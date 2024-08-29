@@ -1,12 +1,15 @@
-use actix_web::{cookie::Cookie, http::header::ContentType, HttpRequest, HttpResponse};
+use actix_web::{http::header::ContentType, HttpResponse};
+use actix_web_flash_messages::IncomingFlashMessages;
+use std::fmt::Write;
 
-pub async fn login_form(request: HttpRequest) -> HttpResponse {
-    let error_html = match request.cookie("_flash") {
-        None => String::new(),
-        Some(cookie) => {
-            format!("<p><i>{msg}</i></p>", msg = cookie.value())
-        }
-    };
+pub async fn login_form(flash_messages: IncomingFlashMessages) -> HttpResponse {
+    let mut error_html = String::new();
+    for m in flash_messages
+        .iter()
+        .filter(|m| m.level() == actix_web_flash_messages::Level::Error)
+    {
+        writeln!(error_html, "<p><i>{content}</i></p>", content = m.content()).unwrap();
+    }
     // TODO(aalhendi): what to do with login.html? include str and str replace?
     let html_body = format!(
         r#"
@@ -36,11 +39,7 @@ pub async fn login_form(request: HttpRequest) -> HttpResponse {
         "#
     );
 
-    let mut response = HttpResponse::Ok()
+    HttpResponse::Ok()
         .content_type(ContentType::html())
-        .body(html_body);
-    response
-        .add_removal_cookie(&Cookie::new("_flash", ""))
-        .unwrap();
-    response
+        .body(html_body)
 }

@@ -1,6 +1,7 @@
 use std::net::TcpListener;
 
-use actix_web::{dev::Server, web, App, HttpServer};
+use actix_web::{cookie::Key, dev::Server, web, App, HttpServer};
+use actix_web_flash_messages::{storage::CookieMessageStore, FlashMessagesFramework};
 use secrecy::{ExposeSecret, Secret};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing_actix_web::TracingLogger;
@@ -56,7 +57,7 @@ impl Application {
             connection_pool,
             email_client,
             configuration.application.base_url,
-            configuration.application.hmac_secret,
+            HmacSecret(configuration.application.hmac_secret),
         )?;
 
         Ok(Self { port, server })
@@ -86,7 +87,7 @@ fn run(
     db_pool: PgPool,
     email_client: EmailClient,
     base_url: String,
-    hmac_secret: Secret<String>,
+    hmac_secret: HmacSecret,
 ) -> Result<Server, std::io::Error> {
     // Handles all *transport level* concerns
     /*
@@ -101,9 +102,14 @@ fn run(
     // reqwest::Client uses Arc<T> internally and does not need this. However, our additional fields do.
     let email_client = web::Data::new(email_client);
     let base_url = web::Data::new(ApplicationBaseUrl(base_url));
+    let message_store =
+        CookieMessageStore::builder(Key::from(hmac_secret.expose().as_bytes())).build();
+    let message_framework = FlashMessagesFramework::builder(message_store).build();
     let server = HttpServer::new(move || {
         // all app logic lives in App: routing, middlewares, request handlers, etc
         App::new()
+            // Handles cookie hardening and does the heavy lifting for flash messages.
+            .wrap(message_framework.clone())
             // Using drop in replacement for actix::middleware::Logger that knows how to handle the tracing crate (tracing-aware)
             .wrap(TracingLogger::default())
             // short for Route::new().guard(guard::Get())
@@ -134,7 +140,7 @@ fn run(
             // When cloning, we clone a pointer to the existing connection pool rather than making a new pool.
             .app_data(email_client.clone())
             .app_data(base_url.clone())
-            .app_data(web::Data::new(HmacSecret(hmac_secret.clone())))
+            .app_data(web::Data::new(hmac_secret.clone()))
     })
     .listen(listener)?
     .run();
