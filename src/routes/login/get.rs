@@ -1,48 +1,12 @@
-use actix_web::{http::header::ContentType, web, HttpResponse};
-use hmac::{Hmac, Mac};
+use actix_web::{http::header::ContentType, HttpRequest, HttpResponse};
 
-use crate::startup::HmacSecret;
-
-#[derive(serde::Deserialize)]
-pub struct QueryParams {
-    error: String,
-    tag: String,
-}
-
-impl QueryParams {
-    fn verify(self, secret: &HmacSecret) -> Result<String, anyhow::Error> {
-        let tag = hex::decode(self.tag)?;
-        let query_string = format!("error={err}", err = urlencoding::Encoded::new(&self.error));
-        let mut mac = Hmac::<sha2::Sha256>::new_from_slice(secret.expose().as_bytes()).unwrap();
-        mac.update(query_string.as_bytes());
-        mac.verify_slice(&tag)?;
-        Ok(self.error)
-    }
-}
-
-pub async fn login_form(
-    query: Option<web::Query<QueryParams>>,
-    secret: web::Data<HmacSecret>,
-) -> HttpResponse {
-    let error_html = match query {
+pub async fn login_form(request: HttpRequest) -> HttpResponse {
+    let error_html = match request.cookie("_flash") {
         None => String::new(),
-        Some(query) => match query.0.verify(&secret) {
-            Ok(error) => {
-                // Follow OWASP guidelines for untrusted input. HTML-encode html to prevent XSS.
-                let formatted_msg = htmlescape::encode_minimal(&error);
-                format!("<p><i>{formatted_msg}</i></p>")
-            }
-            Err(e) => {
-                tracing::warn!(
-                error.message = %e,
-                error.cause_chain = ?e,
-                "Failed to verify query parameters using the HMAC tag"
-                );
-                String::new()
-            }
-        },
+        Some(cookie) => {
+            format!("<p><i>{msg}</i></p>", msg = cookie.value())
+        }
     };
-
     // TODO(aalhendi): what to do with login.html? include str and str replace?
     let html_body = format!(
         r#"
