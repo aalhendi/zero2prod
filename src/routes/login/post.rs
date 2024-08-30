@@ -1,4 +1,3 @@
-use actix_session::Session;
 use actix_web::{error::InternalError, web, HttpResponse};
 use actix_web_flash_messages::FlashMessage;
 use reqwest::header::LOCATION;
@@ -8,6 +7,7 @@ use sqlx::PgPool;
 use crate::{
     authentication::{validate_credentials, AuthError, Credentials},
     routes::subscriptions::error_chain_fmt,
+    session_state::TypedSession,
 };
 
 #[derive(serde::Deserialize)]
@@ -23,7 +23,7 @@ pub struct FormData {
 pub async fn login(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>,
-    session: Session,
+    session: TypedSession,
     // Use Actix's InternalError to take an error and its cause
 ) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = Credentials {
@@ -38,7 +38,7 @@ pub async fn login(
             // Renew the Session ID After Any Privilege Level Change
             session.renew();
             session
-                .insert("user_id", user_id)
+                .insert_user_id(user_id)
                 .map_err(|e| login_redirect(LoginError::UnexpectedError(e.into())))?;
             Ok(HttpResponse::SeeOther()
                 .insert_header((LOCATION, "/admin/dashboard"))
