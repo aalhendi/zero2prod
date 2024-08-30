@@ -145,6 +145,20 @@ impl TestApp {
             .await
             .unwrap()
     }
+
+    pub async fn get_admin_dashboard_html(&self) -> String {
+        self.api_client
+            .get(&format!(
+                "{address}/admin/dashboard",
+                address = &self.address
+            ))
+            .send()
+            .await
+            .expect("Failed to execute request.")
+            .text()
+            .await
+            .unwrap()
+    }
 }
 
 // This is done to fully decouple test suite from underlying implementation details.

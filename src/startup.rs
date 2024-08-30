@@ -1,5 +1,6 @@
 use std::net::TcpListener;
 
+use actix_session::{storage::RedisSessionStore, SessionMiddleware};
 use actix_web::{cookie::Key, dev::Server, web, App, HttpServer};
 use actix_web_flash_messages::{storage::CookieMessageStore, FlashMessagesFramework};
 use secrecy::{ExposeSecret, Secret};
@@ -27,7 +28,7 @@ pub struct Application {
 }
 
 impl Application {
-    pub async fn build(configuration: Settings) -> Result<Self, std::io::Error> {
+    pub async fn build(configuration: Settings) -> Result<Self, anyhow::Error> {
         let connection_pool = get_connection_pool(configuration.database);
 
         // Build an `EmailClient` using `configuration`
@@ -58,7 +59,9 @@ impl Application {
             email_client,
             configuration.application.base_url,
             HmacSecret(configuration.application.hmac_secret),
-        )?;
+            configuration.redis_uri,
+        )
+        .await?;
 
         Ok(Self { port, server })
     }
@@ -82,13 +85,14 @@ pub fn get_connection_pool(configuration: DatabaseSettings) -> PgPool {
 /// Since actix-web retrival from context is type-based, using raw `String` causes conflicts.
 pub struct ApplicationBaseUrl(pub String);
 
-fn run(
+async fn run(
     listener: TcpListener,
     db_pool: PgPool,
     email_client: EmailClient,
     base_url: String,
     hmac_secret: HmacSecret,
-) -> Result<Server, std::io::Error> {
+    redis_uri: Secret<String>,
+) -> Result<Server, anyhow::Error> {
     // Handles all *transport level* concerns
     /*
     HttpServer::new doesn't take App as arg - wants closure & returns App struct.
@@ -102,14 +106,20 @@ fn run(
     // reqwest::Client uses Arc<T> internally and does not need this. However, our additional fields do.
     let email_client = web::Data::new(email_client);
     let base_url = web::Data::new(ApplicationBaseUrl(base_url));
-    let message_store =
-        CookieMessageStore::builder(Key::from(hmac_secret.expose().as_bytes())).build();
+    let secret_key = Key::from(hmac_secret.expose().as_bytes());
+    let message_store = CookieMessageStore::builder(secret_key.clone()).build();
     let message_framework = FlashMessagesFramework::builder(message_store).build();
+    let redis_store = RedisSessionStore::new(redis_uri.expose_secret()).await?;
     let server = HttpServer::new(move || {
         // all app logic lives in App: routing, middlewares, request handlers, etc
         App::new()
             // Handles cookie hardening and does the heavy lifting for flash messages.
             .wrap(message_framework.clone())
+            // Handles loading session data, tracking state changes + persisting them at end of request/response lifecycle
+            .wrap(SessionMiddleware::new(
+                redis_store.clone(),
+                secret_key.clone(),
+            ))
             // Using drop in replacement for actix::middleware::Logger that knows how to handle the tracing crate (tracing-aware)
             .wrap(TracingLogger::default())
             // short for Route::new().guard(guard::Get())
@@ -133,6 +143,10 @@ fn run(
             .route("/", web::get().to(routes::home::home))
             .route("/login", web::get().to(routes::login::get::login_form))
             .route("/login", web::post().to(routes::login::post::login))
+            .route(
+                "/admin/dashboard",
+                web::get().to(routes::admin::dashboard::admin_dashboard),
+            )
             // Register the connection ptr copy as part of app state
             .app_data(db_pool.clone())
             // Client registered as part of app state to be able to reuse it across multiple requests.

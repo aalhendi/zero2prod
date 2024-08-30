@@ -49,6 +49,9 @@ cargo install --locked bunyan
 ## To Run The App
 
 ```sh
+./scripts/init_db.sh
+./scripts/init_redis.sh
+
 TEST_LOG=true RUST_LOG=debug cargo run | bunyan
 ```
 
