@@ -2,6 +2,7 @@
 // Taking full advantage of the fact that each file under tests is its own executable.
 // Define submodules scoped to a single executable. Will structure `api` similarly to a binary crate structure.
 
+mod admin_dashboard;
 mod health_check;
 mod helpers;
 mod login;
