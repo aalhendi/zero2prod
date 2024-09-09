@@ -4,10 +4,7 @@ use std::fmt::Write;
 
 pub async fn login_form(flash_messages: IncomingFlashMessages) -> HttpResponse {
     let mut error_html = String::new();
-    for m in flash_messages
-        .iter()
-        .filter(|m| m.level() == actix_web_flash_messages::Level::Error)
-    {
+    for m in flash_messages.iter() {
         writeln!(error_html, "<p><i>{content}</i></p>", content = m.content()).unwrap();
     }
     // TODO(aalhendi): what to do with login.html? include str and str replace?

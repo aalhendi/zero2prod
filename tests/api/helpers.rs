@@ -190,6 +190,14 @@ impl TestApp {
             .await
             .expect("Failed to execute request.")
     }
+
+    pub async fn post_logout(&self) -> reqwest::Response {
+        self.api_client
+            .post(&format!("{address}/admin/logout", address = &self.address))
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
 }
 
 // This is done to fully decouple test suite from underlying implementation details.
