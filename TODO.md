@@ -13,6 +13,8 @@
 - What happens if the subscription token is well-formatted but non-existent?
 - Add pepper to passwords, follow OWASP
 - Seed admin should be able to invite more collaborators. impl login-protected functionality (subscription flow for inspiration)
+- Create middleware wrapping `/admin/` prefix endpoints, checks session state and redirects to `/login` if not logged in.
+- Password minimum length [OWASP Link](https://github.com/OWASP/ASVS/blob/master/5.0/en/0x11-V2-Authentication.md).
 
 ## Milestone Tasks
 

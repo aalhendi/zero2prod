@@ -3,6 +3,7 @@
 // Define submodules scoped to a single executable. Will structure `api` similarly to a binary crate structure.
 
 mod admin_dashboard;
+mod change_password;
 mod health_check;
 mod helpers;
 mod login;

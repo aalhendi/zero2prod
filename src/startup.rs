@@ -147,6 +147,14 @@ async fn run(
                 "/admin/dashboard",
                 web::get().to(routes::admin::dashboard::admin_dashboard),
             )
+            .route(
+                "/admin/password",
+                web::get().to(routes::admin::password::get::change_password_form),
+            )
+            .route(
+                "/admin/password",
+                web::post().to(routes::admin::password::post::change_password),
+            )
             // Register the connection ptr copy as part of app state
             .app_data(db_pool.clone())
             // Client registered as part of app state to be able to reuse it across multiple requests.
