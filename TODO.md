@@ -12,6 +12,7 @@
 - What happens if a user clicks on a confirmation link twice?
 - What happens if the subscription token is well-formatted but non-existent?
 - Add pepper to passwords, follow OWASP
+- Seed admin should be able to invite more collaborators. impl login-protected functionality (subscription flow for inspiration)
 
 ## Milestone Tasks
 
