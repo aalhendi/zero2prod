@@ -1,15 +1,13 @@
-use crate::authentication::{validate_credentials, Credentials};
+use crate::authentication::password::{validate_credentials, AuthError, Credentials};
+use crate::{
+    domain::SubscriberEmail, email_client::EmailClient, routes::subscriptions::error_chain_fmt,
+};
 use actix_web::{http::header::HeaderMap, web, HttpResponse};
 use anyhow::Context;
 use base64::Engine;
 use reqwest::header::HeaderValue;
 use secrecy::Secret;
 use sqlx::PgPool;
-
-use crate::{
-    authentication::AuthError, domain::SubscriberEmail, email_client::EmailClient,
-    routes::subscriptions::error_chain_fmt,
-};
 
 // TODO(aalhendi): create a email domain entry?
 #[derive(serde::Deserialize)]

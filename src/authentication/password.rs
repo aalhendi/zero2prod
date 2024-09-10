@@ -1,3 +1,5 @@
+use super::middleware::UserId;
+use crate::telemetry::spawn_blocking_with_tracing;
 use anyhow::Context;
 use argon2::{
     password_hash::SaltString, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
@@ -5,8 +7,6 @@ use argon2::{
 };
 use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
-
-use crate::telemetry::spawn_blocking_with_tracing;
 
 #[derive(thiserror::Error, Debug)]
 pub enum AuthError {
@@ -102,7 +102,7 @@ async fn get_stored_credentials(
 
 #[tracing::instrument(name = "Change password", skip(password, pool))]
 pub async fn change_password(
-    user_id: uuid::Uuid,
+    user_id: UserId,
     password: Secret<String>,
     pool: &PgPool,
 ) -> Result<(), anyhow::Error> {
@@ -116,7 +116,7 @@ SET password_hash = $1
 WHERE user_id = $2
 "#,
         password_hash.expose_secret(),
-        user_id
+        *user_id
     )
     .execute(pool)
     .await

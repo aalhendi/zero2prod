@@ -41,6 +41,7 @@ htmlescape = "0.3.1"
 actix-web-flash-messages = { version = "0.5", features = ["cookies"] }
 actix-session = { version = "0.7", features = ["redis-rs-tls-session"] }
 serde_json = "1"
+actix-web-lab = "0.18"                                                   # TODO(aalhendi): are the features I need in stable Actix now?
 
 [dependencies.sqlx]
 version = "0.7"

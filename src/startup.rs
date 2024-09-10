@@ -3,11 +3,13 @@ use std::net::TcpListener;
 use actix_session::{storage::RedisSessionStore, SessionMiddleware};
 use actix_web::{cookie::Key, dev::Server, web, App, HttpServer};
 use actix_web_flash_messages::{storage::CookieMessageStore, FlashMessagesFramework};
+use actix_web_lab::middleware::from_fn;
 use secrecy::{ExposeSecret, Secret};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing_actix_web::TracingLogger;
 
 use crate::{
+    authentication,
     configuration::{DatabaseSettings, Settings},
     email_client::EmailClient,
     routes,
@@ -143,21 +145,22 @@ async fn run(
             .route("/", web::get().to(routes::home::home))
             .route("/login", web::get().to(routes::login::get::login_form))
             .route("/login", web::post().to(routes::login::post::login))
-            .route(
-                "/admin/dashboard",
-                web::get().to(routes::admin::dashboard::admin_dashboard),
-            )
-            .route(
-                "/admin/password",
-                web::get().to(routes::admin::password::get::change_password_form),
-            )
-            .route(
-                "/admin/password",
-                web::post().to(routes::admin::password::post::change_password),
-            )
-            .route(
-                "/admin/logout",
-                web::post().to(routes::admin::logout::log_out),
+            .service(
+                web::scope("/admin")
+                    .wrap(from_fn(authentication::middleware::reject_anonymous_users))
+                    .route(
+                        "/dashboard",
+                        web::get().to(routes::admin::dashboard::admin_dashboard),
+                    )
+                    .route(
+                        "/password",
+                        web::get().to(routes::admin::password::get::change_password_form),
+                    )
+                    .route(
+                        "/password",
+                        web::post().to(routes::admin::password::post::change_password),
+                    )
+                    .route("/logout", web::post().to(routes::admin::logout::log_out)),
             )
             // Register the connection ptr copy as part of app state
             .app_data(db_pool.clone())
