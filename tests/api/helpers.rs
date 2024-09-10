@@ -63,6 +63,14 @@ impl TestUser {
         .await
         .expect("Failed to store test user.");
     }
+
+    pub async fn login(&self, app: &TestApp) {
+        app.post_login(&serde_json::json!({
+            "username": &self.username,
+            "password": &self.password
+        }))
+        .await;
+    }
 }
 
 pub struct TestApp {
@@ -85,14 +93,31 @@ impl TestApp {
             .expect("Failed to execute request.")
     }
 
-    pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
+    pub async fn post_publish_newsletter(&self, body: serde_json::Value) -> reqwest::Response {
         self.api_client
-            .post(&format!("{address}/newsletters", address = &self.address))
-            .basic_auth(&self.test_user.username, Some(&self.test_user.password))
-            .json(&body)
+            .post(&format!(
+                "{address}/admin/newsletters",
+                address = &self.address
+            ))
+            .form(&body)
             .send()
             .await
             .expect("Failed to execute request.")
+    }
+
+    pub async fn get_publish_newsletter(&self) -> reqwest::Response {
+        self.api_client
+            .get(&format!(
+                "{address}/admin/newsletters",
+                address = &self.address
+            ))
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
+    pub async fn get_publish_newsletter_html(&self) -> String {
+        self.get_publish_newsletter().await.text().await.unwrap()
     }
 
     /// Extract confirmation links embedded in a request to the email API.

@@ -138,10 +138,6 @@ async fn run(
                 "/subscriptions/confirm",
                 web::get().to(routes::subscriptions_confirm::confirm),
             )
-            .route(
-                "/newsletters",
-                web::post().to(routes::newsletters::publish_newsletter),
-            )
             .route("/", web::get().to(routes::home::home))
             .route("/login", web::get().to(routes::login::get::login_form))
             .route("/login", web::post().to(routes::login::post::login))
@@ -160,7 +156,15 @@ async fn run(
                         "/password",
                         web::post().to(routes::admin::password::post::change_password),
                     )
-                    .route("/logout", web::post().to(routes::admin::logout::log_out)),
+                    .route("/logout", web::post().to(routes::admin::logout::log_out))
+                    .route(
+                        "/newsletters",
+                        web::get().to(routes::admin::newsletters::get::publish_newsletter_form),
+                    )
+                    .route(
+                        "/newsletters",
+                        web::post().to(routes::admin::newsletters::post::publish_newsletter),
+                    ),
             )
             // Register the connection ptr copy as part of app state
             .app_data(db_pool.clone())
