@@ -1,7 +1,7 @@
 use crate::{authentication::middleware::UserId, idempotency::key::IdempotencyKey};
 use actix_web::HttpResponse;
 use reqwest::StatusCode;
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Postgres, Transaction};
 
 #[derive(Debug, sqlx::Type)]
 #[sqlx(type_name = "header_pair")]
@@ -24,12 +24,14 @@ pub async fn get_saved_response(
     idempotency_key: &IdempotencyKey,
     user_id: UserId,
 ) -> Result<Option<HttpResponse>, anyhow::Error> {
+    // To deal with nullable columns, ask sqlx to forcefully assume that the columns will not be null
+    // if incorrect, will cause a runtime error.
     let saved_response = sqlx::query!(
         r#"
     SELECT
-        response_status_code,
-        response_headers as "response_headers: Vec<HeaderPairRecord>",
-        response_body
+        response_status_code as "response_status_code!",
+        response_headers as "response_headers!: Vec<HeaderPairRecord>",
+        response_body as "response_body!"
     FROM
         idempotency
     WHERE
@@ -59,7 +61,7 @@ pub async fn get_saved_response(
 // Pulling chunk of data from payload stream requires a mutable reference to the stream itself
 // once chunk has been read, there is no way to “replay” the stream and read it again
 pub async fn save_response(
-    pool: &PgPool,
+    mut transaction: Transaction<'static, Postgres>,
     idempotency_key: &IdempotencyKey,
     user_id: UserId,
     http_response: HttpResponse,
@@ -82,29 +84,65 @@ pub async fn save_response(
     };
     // Disable compile-time verification:
     // sqlx::query! is not powerful enough to learn about custom type at compile-time.
-    sqlx::query_unchecked!(
+    let query = sqlx::query_unchecked!(
         r#"
-    INSERT INTO
-        idempotency (
-            user_id,
-            idempotency_key,
-            response_status_code,
-            response_headers,
-            response_body,
-            created_at
-        )
-    VALUES
-        ($1, $2, $3, $4, $5, now ())
+    UPDATE
+        idempotency
+    SET
+        response_status_code = $3,
+        response_headers = $4,
+        response_body = $5
+    WHERE
+        user_id = $1 AND
+        idempotency_key = $2
         "#,
         *user_id,
         idempotency_key.as_ref(),
         status_code,
         headers,
         body_bytes.as_ref()
-    )
-    .execute(pool)
-    .await?;
+    );
+    transaction.execute(query).await?;
+    transaction.commit().await?;
 
     let http_response = response_head.set_body(body_bytes).map_into_boxed_body();
     Ok(http_response)
+}
+
+pub enum NextAction {
+    StartProcessing(Transaction<'static, Postgres>),
+    ReturnSavedResponse(HttpResponse),
+}
+
+pub async fn try_processing(
+    pool: &PgPool,
+    idempotency_key: &IdempotencyKey,
+    user_id: UserId,
+) -> Result<NextAction, anyhow::Error> {
+    // NOTE(aalhendi): Use a transaction to enable concurrent request idempotency.
+    // Because READ COMMITTED is the default isolation level in Postgres, INSERT statement
+    // if fired by 2nd request must wait for outcome of the SQL transaction started by first request.
+    // This will NOT work when using stricter isolation levels such as `repeatable read` or `serializable`
+    let mut transaction = pool.begin().await?;
+
+    let query = sqlx::query!(
+        r#"
+    INSERT INTO
+        idempotency (user_id, idempotency_key, created_at)
+    VALUES
+        ($1, $2, now()) ON CONFLICT DO NOTHING
+"#,
+        *user_id,
+        idempotency_key.as_ref()
+    );
+    let n_inserted_rows = transaction.execute(query).await?.rows_affected();
+
+    if n_inserted_rows > 0 {
+        Ok(NextAction::StartProcessing(transaction))
+    } else {
+        let saved_response = get_saved_response(pool, idempotency_key, user_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("We expected a saved response, we didn't find it"))?;
+        Ok(NextAction::ReturnSavedResponse(saved_response))
+    }
 }

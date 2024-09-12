@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n    INSERT INTO\n        idempotency (\n            user_id,\n            idempotency_key,\n            response_status_code,\n            response_headers,\n            response_body,\n            created_at\n        )\n    VALUES\n        ($1, $2, $3, $4, $5, now ())\n        ",
+  "query": "\n    UPDATE\n        idempotency\n    SET\n        response_status_code = $3,\n        response_headers = $4,\n        response_body = $5\n    WHERE\n        user_id = $1 AND\n        idempotency_key = $2\n        ",
   "describe": {
     "columns": [],
     "parameters": {
@@ -37,5 +37,5 @@
     },
     "nullable": []
   },
-  "hash": "3aec8c42f765bef5085e845274969604d9a00fd8f2a8217304b860bf0f77039c"
+  "hash": "1813b074dbccc633d8cc786551371a59c330e845bf8ec784419ca0b533ef7677"
 }

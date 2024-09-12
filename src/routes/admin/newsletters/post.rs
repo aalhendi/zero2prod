@@ -1,6 +1,6 @@
 use crate::authentication::middleware::UserId;
 use crate::idempotency::key::IdempotencyKey;
-use crate::idempotency::persistence::{get_saved_response, save_response};
+use crate::idempotency::persistence::{save_response, try_processing, NextAction};
 use crate::utils::{e400, e500, see_other};
 use crate::{
     domain::SubscriberEmail, email_client::EmailClient, routes::subscriptions::error_chain_fmt,
@@ -46,14 +46,17 @@ pub async fn publish_newsletter(
     let user_id = user_id.into_inner();
     let idempotency_key: IdempotencyKey = idempotency_key.try_into().map_err(e400)?;
 
-    // Return early if we have a saved response in the database
-    if let Some(saved_response) = get_saved_response(&pool, &idempotency_key, user_id)
+    let transaction = match try_processing(&pool, &idempotency_key, user_id)
         .await
         .map_err(e500)?
     {
-        FlashMessage::info("The newsletter issue has been published!").send();
-        return Ok(saved_response);
-    }
+        NextAction::StartProcessing(t) => t,
+        NextAction::ReturnSavedResponse(saved_response) => {
+            // Return early if we have a saved response in the database
+            success_message().send();
+            return Ok(saved_response);
+        }
+    };
 
     let subscribers = get_confirmed_subscribers(&pool).await.map_err(e500)?;
     for subscriber in subscribers {
@@ -84,9 +87,9 @@ pub async fn publish_newsletter(
         }
     }
 
-    FlashMessage::info("The newsletter issue has been published!").send();
+    success_message().send();
     let response = see_other("/admin/newsletters");
-    let response = save_response(&pool, &idempotency_key, user_id, response)
+    let response = save_response(transaction, &idempotency_key, user_id, response)
         .await
         .map_err(e500)?;
     Ok(response)
@@ -153,4 +156,8 @@ impl actix_web::ResponseError for PublishError {
             }
         }
     }
+}
+
+fn success_message() -> FlashMessage {
+    FlashMessage::info("The newsletter issue has been published!")
 }
