@@ -1,5 +1,7 @@
 use crate::authentication::middleware::UserId;
-use crate::utils::see_other;
+use crate::idempotency::key::IdempotencyKey;
+use crate::idempotency::persistence::{get_saved_response, save_response};
+use crate::utils::{e400, e500, see_other};
 use crate::{
     domain::SubscriberEmail, email_client::EmailClient, routes::subscriptions::error_chain_fmt,
 };
@@ -15,6 +17,8 @@ pub struct FormData {
     title: String,
     html_content: String,
     text_content: String,
+    // include here since due to form submission, we do not have control over the headers being sent
+    idempotency_key: String,
 }
 
 struct ConfirmedSubscriber {
@@ -31,18 +35,32 @@ pub async fn publish_newsletter(
     pool: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
     user_id: web::ReqData<UserId>,
-) -> Result<HttpResponse, PublishError> {
-    let subscribers = get_confirmed_subscribers(&pool).await?;
+) -> Result<HttpResponse, actix_web::Error> {
+    // Destructure form to avoid making borrow checker angry
+    let FormData {
+        title,
+        text_content,
+        html_content,
+        idempotency_key,
+    } = form.0;
+    let user_id = user_id.into_inner();
+    let idempotency_key: IdempotencyKey = idempotency_key.try_into().map_err(e400)?;
+
+    // Return early if we have a saved response in the database
+    if let Some(saved_response) = get_saved_response(&pool, &idempotency_key, user_id)
+        .await
+        .map_err(e500)?
+    {
+        FlashMessage::info("The newsletter issue has been published!").send();
+        return Ok(saved_response);
+    }
+
+    let subscribers = get_confirmed_subscribers(&pool).await.map_err(e500)?;
     for subscriber in subscribers {
         match subscriber {
             Ok(subscriber) => {
                 email_client
-                    .send_email(
-                        &subscriber.email,
-                        &form.title,
-                        &form.html_content,
-                        &form.text_content,
-                    )
+                    .send_email(&subscriber.email, &title, &html_content, &text_content)
                     .await
                     // format! allocates memory on heap to store output string
                     // `with_context` is lazy, so we dont allocate every time we send an email, only on error.
@@ -51,7 +69,8 @@ pub async fn publish_newsletter(
                             "Failed to send newsletter issue to {email}",
                             email = subscriber.email
                         )
-                    })?;
+                    })
+                    .map_err(e500)?;
             }
 
             Err(error) => {
@@ -66,7 +85,11 @@ pub async fn publish_newsletter(
     }
 
     FlashMessage::info("The newsletter issue has been published!").send();
-    Ok(see_other("/admin/newsletters"))
+    let response = see_other("/admin/newsletters");
+    let response = save_response(&pool, &idempotency_key, user_id, response)
+        .await
+        .map_err(e500)?;
+    Ok(response)
 }
 
 #[tracing::instrument(name = "Get confirmed subscribers", skip(pool))]

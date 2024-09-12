@@ -1,0 +1,110 @@
+use crate::{authentication::middleware::UserId, idempotency::key::IdempotencyKey};
+use actix_web::HttpResponse;
+use reqwest::StatusCode;
+use sqlx::PgPool;
+
+#[derive(Debug, sqlx::Type)]
+#[sqlx(type_name = "header_pair")]
+struct HeaderPairRecord {
+    name: String,
+    value: Vec<u8>,
+}
+
+// Sqlx knows about header_pair composite type but not the name of the type for /arrays/ containing header_pair elements
+// Postgres creates an array type implicitly when we run a CREATE TYPE statement
+// [simply the composite type name prefixed by an underscore](https://www.postgresql.org/docs/current/sql-createtype.html)
+impl sqlx::postgres::PgHasArrayType for HeaderPairRecord {
+    fn array_type_info() -> sqlx::postgres::PgTypeInfo {
+        sqlx::postgres::PgTypeInfo::with_name("_header_pair")
+    }
+}
+
+pub async fn get_saved_response(
+    pool: &PgPool,
+    idempotency_key: &IdempotencyKey,
+    user_id: UserId,
+) -> Result<Option<HttpResponse>, anyhow::Error> {
+    let saved_response = sqlx::query!(
+        r#"
+    SELECT
+        response_status_code,
+        response_headers as "response_headers: Vec<HeaderPairRecord>",
+        response_body
+    FROM
+        idempotency
+    WHERE
+        user_id = $1
+        AND idempotency_key = $2
+"#,
+        *user_id,
+        idempotency_key.as_ref()
+    )
+    .fetch_optional(pool)
+    .await?;
+
+    if let Some(r) = saved_response {
+        let status_code = StatusCode::from_u16(r.response_status_code.try_into()?)?;
+        let mut response = HttpResponse::build(status_code);
+        for HeaderPairRecord { name, value } in r.response_headers {
+            response.append_header((name, value));
+        }
+        Ok(Some(response.body(r.response_body)))
+    } else {
+        Ok(None)
+    }
+}
+
+// Take ownership of response and return another owned HttpResponse in case of success
+// Need ownership because of HTTP Streaming
+// Pulling chunk of data from payload stream requires a mutable reference to the stream itself
+// once chunk has been read, there is no way to “replay” the stream and read it again
+pub async fn save_response(
+    pool: &PgPool,
+    idempotency_key: &IdempotencyKey,
+    user_id: UserId,
+    http_response: HttpResponse,
+) -> Result<HttpResponse, anyhow::Error> {
+    let (response_head, body) = http_response.into_parts();
+    // `MessageBody::Error` is not `Send` + `Sync`,
+    // therefore it doesn't play nicely with `anyhow`
+    let body_bytes = actix_web::body::to_bytes(body)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let status_code = response_head.status().as_u16() as i16;
+    let headers = {
+        let mut h = Vec::with_capacity(response_head.headers().len());
+        for (name, value) in response_head.headers().iter() {
+            let name = name.as_str().to_owned();
+            let value = value.as_bytes().to_owned();
+            h.push(HeaderPairRecord { name, value });
+        }
+        h
+    };
+    // Disable compile-time verification:
+    // sqlx::query! is not powerful enough to learn about custom type at compile-time.
+    sqlx::query_unchecked!(
+        r#"
+    INSERT INTO
+        idempotency (
+            user_id,
+            idempotency_key,
+            response_status_code,
+            response_headers,
+            response_body,
+            created_at
+        )
+    VALUES
+        ($1, $2, $3, $4, $5, now ())
+        "#,
+        *user_id,
+        idempotency_key.as_ref(),
+        status_code,
+        headers,
+        body_bytes.as_ref()
+    )
+    .execute(pool)
+    .await?;
+
+    let http_response = response_head.set_body(body_bytes).map_into_boxed_body();
+    Ok(http_response)
+}
