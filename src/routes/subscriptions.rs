@@ -1,4 +1,4 @@
-use actix_web::{web, HttpResponse};
+use actix_web::{http::StatusCode, web, HttpResponse};
 use anyhow::Context;
 use chrono::Utc;
 use sqlx::{Executor, PgPool, Postgres, Transaction};
@@ -218,10 +218,10 @@ impl std::fmt::Debug for SubscribeError {
 }
 
 impl actix_web::ResponseError for SubscribeError {
-    fn status_code(&self) -> reqwest::StatusCode {
+    fn status_code(&self) -> StatusCode {
         match self {
-            SubscribeError::ValidationError(_) => reqwest::StatusCode::BAD_REQUEST,
-            SubscribeError::UnexpectedError(_) => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+            SubscribeError::ValidationError(_) => StatusCode::BAD_REQUEST,
+            SubscribeError::UnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
     // fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {}

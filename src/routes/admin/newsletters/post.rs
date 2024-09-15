@@ -3,10 +3,11 @@ use crate::idempotency::key::IdempotencyKey;
 use crate::idempotency::persistence::{save_response, try_processing, NextAction};
 use crate::routes::subscriptions::error_chain_fmt;
 use crate::utils::{e400, e500, see_other};
+use actix_web::http::header::HeaderValue;
+use actix_web::http::StatusCode;
 use actix_web::{web, HttpResponse};
 use actix_web_flash_messages::FlashMessage;
 use anyhow::Context;
-use reqwest::header::HeaderValue;
 use sqlx::{Executor, PgPool, Transaction};
 use uuid::Uuid;
 
@@ -146,11 +147,11 @@ impl actix_web::ResponseError for PublishError {
     fn error_response(&self) -> HttpResponse {
         match self {
             PublishError::UnexpectedError(_) => {
-                HttpResponse::new(reqwest::StatusCode::INTERNAL_SERVER_ERROR)
+                HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR)
             }
 
             PublishError::AuthError(_) => {
-                let mut response = HttpResponse::new(reqwest::StatusCode::UNAUTHORIZED);
+                let mut response = HttpResponse::new(StatusCode::UNAUTHORIZED);
                 let header_value = HeaderValue::from_str(r#"Basic realm="publish""#).unwrap();
                 response
                     .headers_mut()

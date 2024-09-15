@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n    SELECT\n        newsletter_issue_id,\n        subscriber_email\n    FROM\n        issue_delivery_queue FOR\n    UPDATE\n        SKIP LOCKED\n    LIMIT\n        1\n",
+  "query": "\n    SELECT\n        newsletter_issue_id,\n        subscriber_email\n    FROM\n        issue_delivery_queue FOR UPDATE\n    SKIP LOCKED\n    LIMIT\n        1\n",
   "describe": {
     "columns": [
       {
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "4752992d21f82593021cf84ed13c0779919e367b81a388661f1f6377b5cac21d"
+  "hash": "6c0aa6f59800f4d3d1dce87ff564abb1f5bd3f0302f3248e0fb62a58b5d3fc71"
 }

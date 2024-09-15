@@ -15,8 +15,10 @@
 - Seed admin should be able to invite more collaborators. impl login-protected functionality (subscription flow for inspiration)
 - Create middleware wrapping `/admin/` prefix endpoints, checks session state and redirects to `/login` if not logged in.
 - Password minimum length [OWASP Link](https://github.com/OWASP/ASVS/blob/master/5.0/en/0x11-V2-Authentication.md).
+- enhance issue_delivery_queue - e.g. adding a n_retries and execute_after
 
 ## Milestone Tasks
 
 - Verify properties of logs emitted by application
 - Hook OpenObserve
+- Add workflow observability (e.g. Page to track how many emails still outstanding for a newletter issue)

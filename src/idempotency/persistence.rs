@@ -1,6 +1,5 @@
 use crate::{authentication::middleware::UserId, idempotency::key::IdempotencyKey};
-use actix_web::HttpResponse;
-use reqwest::StatusCode;
+use actix_web::{http::StatusCode, HttpResponse};
 use sqlx::{Executor, PgPool, Postgres, Transaction};
 
 #[derive(Debug, sqlx::Type)]
@@ -8,15 +7,6 @@ use sqlx::{Executor, PgPool, Postgres, Transaction};
 struct HeaderPairRecord {
     name: String,
     value: Vec<u8>,
-}
-
-// Sqlx knows about header_pair composite type but not the name of the type for /arrays/ containing header_pair elements
-// Postgres creates an array type implicitly when we run a CREATE TYPE statement
-// [simply the composite type name prefixed by an underscore](https://www.postgresql.org/docs/current/sql-createtype.html)
-impl sqlx::postgres::PgHasArrayType for HeaderPairRecord {
-    fn array_type_info() -> sqlx::postgres::PgTypeInfo {
-        sqlx::postgres::PgTypeInfo::with_name("_header_pair")
-    }
 }
 
 pub async fn get_saved_response(
