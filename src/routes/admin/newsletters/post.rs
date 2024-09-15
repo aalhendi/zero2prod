@@ -1,17 +1,16 @@
 use crate::authentication::middleware::UserId;
 use crate::idempotency::key::IdempotencyKey;
 use crate::idempotency::persistence::{save_response, try_processing, NextAction};
+use crate::routes::subscriptions::error_chain_fmt;
 use crate::utils::{e400, e500, see_other};
-use crate::{
-    domain::SubscriberEmail, email_client::EmailClient, routes::subscriptions::error_chain_fmt,
-};
 use actix_web::{web, HttpResponse};
 use actix_web_flash_messages::FlashMessage;
 use anyhow::Context;
 use reqwest::header::HeaderValue;
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Transaction};
+use uuid::Uuid;
 
-// TODO(aalhendi): create a email/newsletter domain entry?
+// TODO(aalhendi): create a email/newsletter domain entry see: src/issue_delivery_worker.rs?
 #[derive(serde::Deserialize)]
 pub struct FormData {
     title: String,
@@ -21,21 +20,71 @@ pub struct FormData {
     idempotency_key: String,
 }
 
-struct ConfirmedSubscriber {
-    email: SubscriberEmail,
+#[tracing::instrument(skip_all)]
+async fn insert_newsletter_issue(
+    transaction: &mut Transaction<'_, sqlx::Postgres>,
+    title: &str,
+    text_content: &str,
+    html_content: &str,
+) -> Result<Uuid, sqlx::Error> {
+    // TODO(aalhendi): Move into domain?
+    let newsletter_issue_id = Uuid::new_v4();
+    let query = sqlx::query!(
+        r#"
+    INSERT INTO
+        newsletter_issues (
+            newsletter_issue_id,
+            title,
+            text_content,
+            html_content,
+            published_at
+        )
+    VALUES
+        ($1, $2, $3, $4, now())
+"#,
+        newsletter_issue_id,
+        title,
+        text_content,
+        html_content
+    );
+    transaction.execute(query).await?;
+    Ok(newsletter_issue_id)
+}
+
+#[tracing::instrument(skip_all)]
+async fn enqueue_delivery_tasks(
+    transaction: &mut Transaction<'_, sqlx::Postgres>,
+    newsletter_issue_id: Uuid,
+) -> Result<(), sqlx::Error> {
+    let query = sqlx::query!(
+        r#"
+    INSERT INTO
+        issue_delivery_queue (newsletter_issue_id, subscriber_email)
+    SELECT
+        $1,
+        email
+    FROM
+        subscriptions
+    WHERE
+        status = 'confirmed'
+"#,
+        newsletter_issue_id,
+    );
+    transaction.execute(query).await?;
+    Ok(())
 }
 
 #[tracing::instrument(
     name = "Publish a newsletter issue",
-    skip(form, pool, email_client, user_id),
+    skip_all,
     fields(user_id=%*user_id)
     )]
 pub async fn publish_newsletter(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>,
-    email_client: web::Data<EmailClient>,
     user_id: web::ReqData<UserId>,
 ) -> Result<HttpResponse, actix_web::Error> {
+    let user_id = user_id.into_inner();
     // Destructure form to avoid making borrow checker angry
     let FormData {
         title,
@@ -43,10 +92,9 @@ pub async fn publish_newsletter(
         html_content,
         idempotency_key,
     } = form.0;
-    let user_id = user_id.into_inner();
     let idempotency_key: IdempotencyKey = idempotency_key.try_into().map_err(e400)?;
 
-    let transaction = match try_processing(&pool, &idempotency_key, user_id)
+    let mut transaction = match try_processing(&pool, &idempotency_key, user_id)
         .await
         .map_err(e500)?
     {
@@ -58,67 +106,22 @@ pub async fn publish_newsletter(
         }
     };
 
-    let subscribers = get_confirmed_subscribers(&pool).await.map_err(e500)?;
-    for subscriber in subscribers {
-        match subscriber {
-            Ok(subscriber) => {
-                email_client
-                    .send_email(&subscriber.email, &title, &html_content, &text_content)
-                    .await
-                    // format! allocates memory on heap to store output string
-                    // `with_context` is lazy, so we dont allocate every time we send an email, only on error.
-                    .with_context(|| {
-                        format!(
-                            "Failed to send newsletter issue to {email}",
-                            email = subscriber.email
-                        )
-                    })
-                    .map_err(e500)?;
-            }
+    let issue_id = insert_newsletter_issue(&mut transaction, &title, &text_content, &html_content)
+        .await
+        .context("Failed to store newsletter issue details")
+        .map_err(e500)?;
 
-            Err(error) => {
-                tracing::warn!(
-                // record error chain as structured field on log record.
-                error.cause_chain = ?error,
-                error.message = %error,
-                "Skipping a confirmed subscriber. Their stored contact details are invalid",
-                );
-            }
-        }
-    }
+    enqueue_delivery_tasks(&mut transaction, issue_id)
+        .await
+        .context("Failed to enqueue delivery tasks")
+        .map_err(e500)?;
 
-    success_message().send();
     let response = see_other("/admin/newsletters");
     let response = save_response(transaction, &idempotency_key, user_id, response)
         .await
         .map_err(e500)?;
+    success_message().send();
     Ok(response)
-}
-
-#[tracing::instrument(name = "Get confirmed subscribers", skip(pool))]
-async fn get_confirmed_subscribers(
-    pool: &PgPool,
-) -> Result<Vec<Result<ConfirmedSubscriber, anyhow::Error>>, anyhow::Error> {
-    let confirmed_subscribers = sqlx::query!(
-        r#"
-        SELECT email
-        FROM subscriptions
-        WHERE status = 'confirmed'
-        "#,
-    )
-    .fetch_all(pool)
-    .await?
-    .into_iter()
-    // Re-validate emails. Why? No one-size-fits-all answer.
-    // Data in DB creates temporal coupling between old and new versions of app.
-    // So it might be valid when stored but current app version might disagree.
-    // Since this is isn't critical, we will simply warn the operator.
-    .map(|r| match SubscriberEmail::parse(r.email) {
-        Ok(email) => Ok(ConfirmedSubscriber { email }),
-        Err(error) => Err(anyhow::anyhow!(error)),
-    })
-    .collect();
-    Ok(confirmed_subscribers)
 }
 
 #[derive(thiserror::Error)]
@@ -159,5 +162,5 @@ impl actix_web::ResponseError for PublishError {
 }
 
 fn success_message() -> FlashMessage {
-    FlashMessage::info("The newsletter issue has been published!")
+    FlashMessage::info("The newsletter issue has been accepted - emails will go out shortly.")
 }

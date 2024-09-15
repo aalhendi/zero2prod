@@ -26,7 +26,7 @@ async fn confirmations_without_token_are_rejected_with_a_400() {
 async fn the_link_returned_by_subscribe_returns_a_200_if_called() {
     // Arrange
     let app = spawn_app().await;
-    let body = "name=john%20doe&email=the_john_doe%40example.com";
+    let body = String::from("name=john%20doe&email=the_john_doe%40example.com");
 
     Mock::given(path("/email"))
         .and(method("POST"))
@@ -49,7 +49,7 @@ async fn the_link_returned_by_subscribe_returns_a_200_if_called() {
 async fn clicking_on_the_confirmation_link_confirms_a_subscriber() {
     // Arrange
     let app = spawn_app().await;
-    let body = "name=john%20doe&email=the_john_doe%40example.com";
+    let body = String::from("name=john%20doe&email=the_john_doe%40example.com");
 
     Mock::given(path("/email"))
         .and(method("POST"))
@@ -82,7 +82,7 @@ async fn clicking_on_the_confirmation_link_confirms_a_subscriber() {
 async fn cliocking_on_the_confirmation_link_fails_if_there_is_a_fatal_database_error() {
     // Arrange
     let app = spawn_app().await;
-    let body = "name=john%20doe&email=the_john_doe%40example.com";
+    let body = String::from("name=john%20doe&email=the_john_doe%40example.com");
 
     Mock::given(path("/email"))
         .and(method("POST"))

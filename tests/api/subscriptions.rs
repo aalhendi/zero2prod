@@ -9,7 +9,7 @@ use crate::helpers::spawn_app;
 async fn subscribe_returns_a_200_for_valid_form_data() {
     // Arrange
     let app = spawn_app().await;
-    let body = "name=john%20doe&email=the_john_doe%40example.com";
+    let body = String::from("name=john%20doe&email=the_john_doe%40example.com");
 
     Mock::given(path("/email"))
         .and(method("POST"))
@@ -34,7 +34,7 @@ Option 1 is best to remain fully decoupled and black box BUT we don't want to ex
 async fn subscribe_persists_the_new_subscriber() {
     // Arrange
     let app = spawn_app().await;
-    let body = "name=john%20doe&email=the_john_doe%40example.com";
+    let body = String::from("name=john%20doe&email=the_john_doe%40example.com");
 
     Mock::given(path("/email"))
         .and(method("POST"))
@@ -71,7 +71,7 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
 
     for (invalid_body, error_message) in test_cases {
         // Act
-        let response = app.post_subscriptions(invalid_body).await;
+        let response = app.post_subscriptions(invalid_body.to_string()).await;
 
         // Assert
         assert_eq!(
@@ -95,7 +95,7 @@ async fn subscribe_returns_a_400_when_fields_are_present_but_invalid() {
 
     for (body, description) in test_cases {
         // Act
-        let response = app.post_subscriptions(body).await;
+        let response = app.post_subscriptions(body.to_string()).await;
 
         // Assert
         assert_eq!(
@@ -110,7 +110,7 @@ async fn subscribe_returns_a_400_when_fields_are_present_but_invalid() {
 async fn subscribe_sends_a_confirmation_email_for_valid_data() {
     // Arrange
     let app = spawn_app().await;
-    let body = "name=john%20doe&email=the_john_doe%40example.com";
+    let body = String::from("name=john%20doe&email=the_john_doe%40example.com");
 
     Mock::given(path("/email"))
         .and(method("POST"))
@@ -130,7 +130,7 @@ async fn subscribe_sends_a_confirmation_email_for_valid_data() {
 async fn subscribe_sends_a_confirmation_email_with_a_link() {
     // Arrange
     let app = spawn_app().await;
-    let body = "name=john%20doe&email=the_john_doe%40example.com";
+    let body = String::from("name=john%20doe&email=the_john_doe%40example.com");
 
     Mock::given(path("/email"))
         .and(method("POST"))
@@ -154,7 +154,7 @@ async fn subscribe_sends_a_confirmation_email_with_a_link() {
 async fn subscribe_fails_if_there_is_a_fatal_database_error() {
     // Arrange
     let app = spawn_app().await;
-    let body = "name=john%20doe&email=the_john_doe%40example.com";
+    let body = String::from("name=john%20doe&email=the_john_doe%40example.com");
     // Sabotage the database
     sqlx::query!("ALTER TABLE subscription_tokens DROP COLUMN subscription_token;",)
         .execute(&app.db_pool)
