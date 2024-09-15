@@ -17,7 +17,7 @@ use crate::{
     ),
     err
 )]
-async fn try_execute_task(
+pub async fn try_execute_task(
     pool: &PgPool,
     email_client: &EmailClient,
 ) -> Result<ExecutionOutcome, anyhow::Error> {
@@ -160,7 +160,7 @@ async fn worker_loop(pool: PgPool, email_client: EmailClient) -> Result<(), anyh
     }
 }
 
-enum ExecutionOutcome {
+pub enum ExecutionOutcome {
     TaskCompleted,
     EmptyQueue,
 }
@@ -169,19 +169,7 @@ enum ExecutionOutcome {
 // how many db connections are allocated to background tasks vs API workloads
 pub async fn run_worker_until_stopped(configuration: Settings) -> Result<(), anyhow::Error> {
     let connection_pool = get_connection_pool(configuration.database);
-    let sender_email = configuration
-        .email_client
-        .sender()
-        .expect("Invalid sender email address.");
-    let timeout = configuration.email_client.timeout();
-    let base_url = reqwest::Url::parse(&configuration.email_client.base_url)
-        .expect("Failed to parse base email_client base URL");
-    let email_client = EmailClient::new(
-        base_url,
-        sender_email,
-        configuration.email_client.authorization_token,
-        timeout,
-    );
+    let email_client = configuration.email_client.client();
 
     worker_loop(connection_pool, email_client).await
 }

@@ -4,6 +4,8 @@ use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use zero2prod::{
     configuration::{get_configuration, DatabaseSettings},
+    email_client::EmailClient,
+    issue_delivery_worker::{try_execute_task, ExecutionOutcome},
     startup::{get_connection_pool, Application},
     telemetry::{get_subscriber, init_subscriber},
 };
@@ -80,6 +82,7 @@ pub struct TestApp {
     pub email_server: wiremock::MockServer,
     pub test_user: TestUser,
     pub api_client: reqwest::Client,
+    pub email_client: EmailClient,
 }
 
 impl TestApp {
@@ -223,6 +226,22 @@ impl TestApp {
             .await
             .expect("Failed to execute request.")
     }
+
+    // NOTE(aalhendi): This deviates slightly from main app functionality which spawns worker in background
+    // This would require sleeping for arbitrary time intervals waiting for worker to process emails
+    // and lead to fragile tests.
+    /// Spawn worker on demaned, consume all enqueued tasks
+    pub async fn dispatch_all_pending_emails(&self) {
+        loop {
+            if let ExecutionOutcome::EmptyQueue =
+                try_execute_task(&self.db_pool, &self.email_client)
+                    .await
+                    .unwrap()
+            {
+                break;
+            }
+        }
+    }
 }
 
 // This is done to fully decouple test suite from underlying implementation details.
@@ -279,6 +298,7 @@ pub async fn spawn_app() -> TestApp {
         email_server,
         test_user: TestUser::generate(),
         api_client,
+        email_client: configuration.email_client.client(),
     };
     test_app.test_user.store(&test_app.db_pool).await;
     test_app
