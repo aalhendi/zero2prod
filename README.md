@@ -14,10 +14,10 @@ This project uses `mold` as the linker. You may disable this by modifying the `C
 
 `cargo-watch` speeds up the iteration speed by triggering commands whenever a file is changed.
 
-### Install [tarpaulin](https://github.com/xd009642/tarpaulin)
+### Install [cargo-llvm-cov](https://github.com/taiki-e/cargo-llvm-cov)
 
-NOTE: unsure if this supports ARM or just x86_64
-`cargo tarpaulin --ignore-tests` computes code coverage for application code, ignoring test functions.
+`cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info` computes code coverage for application code, ignoring test functions.
+`cargo llvm-cov report --html --output-dir coverage` generates an HTML report.
 
 ### Install [cargo-audit](https://crates.io/crates/cargo-audit)
 
@@ -26,7 +26,7 @@ Checks against [RustSec/advisory-db](https://github.com/RustSec/advisory-db) for
 ### Install [sqlx](https://crates.io/crates/sqlx-cli/)
 
 ```sh
-cargo install --version="~0.7" sqlx-cli --no-default-features --features rustls,postgres
+cargo install --version="~0.8" sqlx-cli --no-default-features --features rustls,postgres
 ```
 
 We run a prepare command to generate query metadata to support offline compile-time verification.
