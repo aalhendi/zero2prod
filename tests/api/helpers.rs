@@ -1,5 +1,6 @@
+use std::sync::OnceLock;
+
 use argon2::{password_hash::SaltString, Argon2, PasswordHasher};
-use once_cell::sync::Lazy;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use zero2prod::{
@@ -10,19 +11,7 @@ use zero2prod::{
     telemetry::{get_subscriber, init_subscriber},
 };
 
-// TODO(aalhendi): Use some std:: methods. I don't think theres a need for the once_cell crate anymore.
-static TRACING: Lazy<()> = Lazy::new(|| {
-    let default_filter_level = String::from("info");
-    let subscriber_name = String::from("test");
-    // Can't assign subscriber to var and call `init_subscriber()` once becaue of opaque types. We can get around this with `Dyn` and `Box` but I'd rather not.
-    if std::env::var("TEST_LOG").is_ok() {
-        let subscriber = get_subscriber(subscriber_name, default_filter_level, std::io::stdout);
-        init_subscriber(subscriber);
-    } else {
-        let subscriber = get_subscriber(subscriber_name, default_filter_level, std::io::sink);
-        init_subscriber(subscriber);
-    };
-});
+static TRACING: OnceLock<()> = OnceLock::new();
 
 /// Confirmation links embedded in the request to the email API.
 pub struct ConfirmationLinks {
@@ -243,7 +232,18 @@ impl TestApp {
 pub async fn spawn_app() -> TestApp {
     // The first time `initialize` is invoked the code in `TRACING` is executed.
     // All other invocations will instead skip execution.
-    Lazy::force(&TRACING);
+    TRACING.get_or_init(|| {
+        let default_filter_level = String::from("info");
+        let subscriber_name = String::from("test");
+        // Can't assign subscriber to var and call `init_subscriber()` once becaue of opaque types. We can get around this with `Dyn` and `Box` but I'd rather not.
+        if std::env::var("TEST_LOG").is_ok() {
+            let subscriber = get_subscriber(subscriber_name, default_filter_level, std::io::stdout);
+            init_subscriber(subscriber);
+        } else {
+            let subscriber = get_subscriber(subscriber_name, default_filter_level, std::io::sink);
+            init_subscriber(subscriber);
+        };
+    });
 
     // Launch a mock server to stand in for Postmark's API
     let email_server = wiremock::MockServer::start().await;
