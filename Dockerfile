@@ -1,11 +1,12 @@
-FROM lukemathwalker/cargo-chef:latest-rust-1.80.0 as chef
+FROM rust:1.81.0-alpine as base
+RUN apk add --no-cache musl-dev 
+
 # change working dir to `app`. Docker will create if not exist
 WORKDIR /app
-# linker system dependencies
-RUN apt update && apt install lld clang -y
+RUN cargo install cargo-chef
 
 # [STAGE]: Planner
-FROM chef as planner
+FROM base as planner
 # Copy all files from our working environment to our Docker image
 # NOTE(aalhendi): `COPY . .` will invalidate the cache for the planner container,
 # but will not invalidate cache for builder container as long as checksum of recipe.json returned by `cargo chef prepare` does not change
@@ -15,7 +16,7 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 # [STAGE]: BUILDER
 # Rust stable as base image
-FROM chef as builder
+FROM base as builder
 COPY --from=planner /app/recipe.json recipe.json
 # Build our project dependencies, not our application!
 RUN cargo chef cook --release --recipe-path recipe.json
@@ -28,19 +29,15 @@ ENV SQLX_OFFLINE true
 RUN cargo build --release
 
 # [STAGE]: RUNTIME
-FROM debian:bookworm-slim as runtime
-# OpenSSL - dynamically linked by some of our dependencies
+FROM alpine:3.18 as runtime
 # ca-certificates - needed to verify TLS certificates when establishing HTTPS connections 
-RUN apt-get update -y \
-    && apt-get install -y --no-install-recommends openssl ca-certificates \
-    # Clean up
-    && apt-get autoremove -y \
-    && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache ca-certificates
 WORKDIR /app
 # Copy compiled binary from builder to workdir
 COPY --from=builder /app/target/release/zero2prod zero2prod
 COPY configuration configuration
+
 ENV APP_ENVIRONMENT production
+
 # On `docker run`, launch binary
 ENTRYPOINT ["./zero2prod"]

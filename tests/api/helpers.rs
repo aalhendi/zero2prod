@@ -88,7 +88,7 @@ pub struct TestApp {
 impl TestApp {
     pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
         self.api_client
-            .post(&format!("{address}/subscriptions", address = &self.address))
+            .post(format!("{address}/subscriptions", address = &self.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(body)
             .send()
@@ -98,7 +98,7 @@ impl TestApp {
 
     pub async fn post_publish_newsletter(&self, body: serde_json::Value) -> reqwest::Response {
         self.api_client
-            .post(&format!(
+            .post(format!(
                 "{address}/admin/newsletters",
                 address = &self.address
             ))
@@ -110,7 +110,7 @@ impl TestApp {
 
     pub async fn get_publish_newsletter(&self) -> reqwest::Response {
         self.api_client
-            .get(&format!(
+            .get(format!(
                 "{address}/admin/newsletters",
                 address = &self.address
             ))
@@ -154,7 +154,7 @@ impl TestApp {
         Body: serde::Serialize,
     {
         self.api_client
-            .post(&format!("{address}/login", address = &self.address))
+            .post(format!("{address}/login", address = &self.address))
             // `reqwest` method ensures body is URL-encoded && `Content-Type` header is set accordingly.
             .form(body)
             .send()
@@ -165,7 +165,7 @@ impl TestApp {
     /// Since tests will only look at HTML page, don't expose the underlying reqwest::Response
     pub async fn get_login_html(&self) -> String {
         self.api_client
-            .get(&format!("{address}/login", address = &self.address))
+            .get(format!("{address}/login", address = &self.address))
             .send()
             .await
             .expect("Failed to execute request.")
@@ -176,7 +176,7 @@ impl TestApp {
 
     pub async fn get_admin_dashboard(&self) -> reqwest::Response {
         self.api_client
-            .get(&format!(
+            .get(format!(
                 "{address}/admin/dashboard",
                 address = &self.address
             ))
@@ -191,10 +191,7 @@ impl TestApp {
 
     pub async fn get_change_password(&self) -> reqwest::Response {
         self.api_client
-            .get(&format!(
-                "{address}/admin/password",
-                address = &self.address
-            ))
+            .get(format!("{address}/admin/password", address = &self.address))
             .send()
             .await
             .expect("Failed to execute request.")
@@ -209,10 +206,7 @@ impl TestApp {
         Body: serde::Serialize,
     {
         self.api_client
-            .post(&format!(
-                "{address}/admin/password",
-                address = &self.address
-            ))
+            .post(format!("{address}/admin/password", address = &self.address))
             .form(body)
             .send()
             .await
@@ -221,7 +215,7 @@ impl TestApp {
 
     pub async fn post_logout(&self) -> reqwest::Response {
         self.api_client
-            .post(&format!("{address}/admin/logout", address = &self.address))
+            .post(format!("{address}/admin/logout", address = &self.address))
             .send()
             .await
             .expect("Failed to execute request.")
