@@ -2,7 +2,6 @@
 
 - CI Flowchart
 - Clean up README
-- Switch to mold linker `.cargo/config.toml`
 - Build something like a spec.yaml manifest for deployments. Inject environment vars
 - Update validator crate
 - Consider proptest crate for property-based testing.
@@ -12,8 +11,6 @@
 - What happens if the subscription token is well-formatted but non-existent?
 - Add pepper to passwords, follow OWASP
 - Seed admin should be able to invite more collaborators. impl login-protected functionality (subscription flow for inspiration)
-- Create middleware wrapping `/admin/` prefix endpoints, checks session state and redirects to `/login` if not logged in.
-- Password minimum length [OWASP Link](https://github.com/OWASP/ASVS/blob/master/5.0/en/0x11-V2-Authentication.md).
 - enhance issue_delivery_queue - e.g. adding a n_retries and execute_after
 
 ## Milestone Tasks

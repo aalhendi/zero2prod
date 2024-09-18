@@ -4,6 +4,7 @@ use crate::{
         middleware::UserId,
         password::{validate_credentials, AuthError, Credentials},
     },
+    domain::SubscriberPassword,
     routes::admin::dashboard::get_username,
     utils::{e500, see_other},
 };
@@ -50,7 +51,15 @@ pub async fn change_password(
         };
     }
 
-    authentication::password::change_password(user_id, form.0.new_password, &pool)
+    let new_password = match SubscriberPassword::parse(form.0.new_password) {
+        Ok(p) => p,
+        Err(e) => {
+            FlashMessage::error(e).send();
+            return Ok(see_other("/admin/password"));
+        }
+    };
+
+    authentication::password::change_password(user_id, new_password, &pool)
         .await
         .map_err(e500)?;
     FlashMessage::error("Your password has been changed.").send();
