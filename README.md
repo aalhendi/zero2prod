@@ -8,7 +8,8 @@ Rust and its tooling are required to build this project. Installing via `rustup`
 
 ### Install [mold](https://github.com/rui314/mold)
 
-This project uses `mold` as the linker. You may disable this by modifying the `Cargo.toml` file.
+This project uses `mold` as the linker. You may disable this by modifying the `.cargo/config.toml` file.
+NOTE(aalhendi): Eventually, Rust will be using `lld` by [default](https://blog.rust-lang.org/2024/05/17/enabling-rust-lld-on-linux.html). At that point it might be worth considering removing this dependency in order to streamline the setup time for this project.
 
 ### Install [cargo-watch](https://crates.io/crates/cargo-watch)
 
