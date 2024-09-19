@@ -16,5 +16,4 @@
 ## Milestone Tasks
 
 - Verify properties of logs emitted by application
-- Hook OpenObserve
 - Add workflow observability (e.g. Page to track how many emails still outstanding for a newletter issue)

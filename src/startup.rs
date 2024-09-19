@@ -82,15 +82,8 @@ async fn run(
     hmac_secret: HmacSecret,
     redis_uri: Secret<String>,
 ) -> Result<Server, anyhow::Error> {
-    // Handles all *transport level* concerns
-    /*
-    HttpServer::new doesn't take App as arg - wants closure & returns App struct.
-    due to actix-web’s runtime model: it will spin up worker process for each available core on machine.
-    Each worker runs own copy of application built by HttpServer calling same closure HttpServer::new takes as argument.
-    */
     // Wrap the connection in a smart pointer (Arc)
     let db_pool = web::Data::new(db_pool);
-
     // Wrap the email client in a smart pointer. Used rather than normal clone on EmailClient to avoid additional memory allocations.
     // reqwest::Client uses Arc<T> internally and does not need this. However, our additional fields do.
     let email_client = web::Data::new(email_client);
@@ -99,6 +92,13 @@ async fn run(
     let message_store = CookieMessageStore::builder(secret_key.clone()).build();
     let message_framework = FlashMessagesFramework::builder(message_store).build();
     let redis_store = RedisSessionStore::new(redis_uri.expose_secret()).await?;
+
+    // Handles all *transport level* concerns
+    /*
+    HttpServer::new doesn't take App as arg - wants closure & returns App struct.
+    due to actix-web’s runtime model: it will spin up worker process for each available core on machine.
+    Each worker runs own copy of application built by HttpServer calling same closure HttpServer::new takes as argument.
+    */
     let server = HttpServer::new(move || {
         // all app logic lives in App: routing, middlewares, request handlers, etc
         App::new()

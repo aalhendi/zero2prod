@@ -2,17 +2,62 @@ use tokio::task::JoinHandle;
 use tracing::{subscriber::set_global_default, Subscriber};
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_log::LogTracer;
-use tracing_subscriber::{fmt::MakeWriter, layer::SubscriberExt, EnvFilter, Registry};
+use tracing_subscriber::{
+    fmt::MakeWriter, layer::SubscriberExt, registry::LookupSpan, EnvFilter, Registry,
+};
+#[cfg(feature = "open-telemetry")]
+use {
+    crate::configuration::OpenTelemetrySettings,
+    opentelemetry::{trace::TracerProvider as _, KeyValue},
+    opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge,
+    opentelemetry_otlp::WithExportConfig,
+    opentelemetry_sdk::{
+        logs::LoggerProvider,
+        metrics::SdkMeterProvider,
+        trace::{BatchConfig, TracerProvider},
+        Resource,
+    },
+    opentelemetry_semantic_conventions::{
+        resource::{DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_NAME, SERVICE_VERSION},
+        SCHEMA_URL,
+    },
+    tracing_opentelemetry::OpenTelemetryLayer,
+};
+
+#[cfg(feature = "open-telemetry")]
+pub struct OtelGuard {
+    meter_provider: SdkMeterProvider,
+    logger_provider: LoggerProvider,
+    tracer_provider: TracerProvider,
+}
+
+#[cfg(feature = "open-telemetry")]
+impl Drop for OtelGuard {
+    fn drop(&mut self) {
+        if let Err(err) = self.meter_provider.shutdown() {
+            eprintln!("Error shutting down meter provider: {err:?}");
+        }
+
+        if let Err(err) = self.logger_provider.shutdown() {
+            eprintln!("Error shutting down logger provider: {err:?}");
+        }
+
+        if let Err(err) = self.tracer_provider.shutdown() {
+            eprintln!("Error shutting down tracer provider: {err:?}");
+        }
+    }
+}
 
 /// Compose multiple layers into a `tracing`'s subscriber.
 ///
 /// `impl Subscriber` as return type to avoid having to spell out the actual type of returned subscriber.
 /// Also specify it implements `Send` and `Sync` to make it possible to pass to `init_subscriber`.
+/// Finally, specify it implements LookupSpan to optionally add more layers to the subscriber
 pub fn get_subscriber<Sink>(
     name: String,
     env_filter: String,
     sink: Sink,
-) -> impl Subscriber + Send + Sync
+) -> impl Subscriber + Send + Sync + for<'span> LookupSpan<'span>
 where
     // Basically specifying that type Sink implements MakeWriter trait for all choices of lifetime param `'a`
     Sink: for<'a> MakeWriter<'a> + Send + Sync + 'static,
@@ -25,6 +70,32 @@ where
         .with(env_filter)
         .with(JsonStorageLayer)
         .with(formatting_layer)
+}
+
+#[cfg(feature = "open-telemetry")]
+pub fn add_otel_to_subscriber<S>(
+    subscriber: S,
+    settings: &OpenTelemetrySettings,
+) -> (impl Subscriber + Send + Sync, OtelGuard)
+where
+    S: Subscriber + for<'span> LookupSpan<'span> + Send + Sync,
+{
+    let meter_provider = SdkMeterProvider::default();
+    let tracer_provider = init_tracer(settings);
+    let otel_trace_layer =
+        OpenTelemetryLayer::new(tracer_provider.tracer("tracing-otel-subscriber"));
+    let logger_provider = init_logger(settings);
+    let otel_log_layer = OpenTelemetryTracingBridge::new(&logger_provider);
+
+    let guard = OtelGuard {
+        meter_provider,
+        logger_provider,
+        tracer_provider,
+    };
+
+    let subscriber = subscriber.with(otel_trace_layer).with(otel_log_layer);
+
+    (subscriber, guard)
 }
 
 /// Register a subscriber as global default to process span data.
@@ -45,4 +116,51 @@ where
     let current_span = tracing::Span::current();
     // Explicitly attach current span to newly spawned thread to maintain span context.
     tokio::task::spawn_blocking(move || current_span.in_scope(f))
+}
+
+#[cfg(feature = "open-telemetry")]
+/// Creates a Resource that captures information about the entity for which telemetry is recorded.
+fn resource() -> Resource {
+    let environment = std::env::var("APP_ENVIRONMENT").unwrap_or_else(|_| String::from("local"));
+    Resource::from_schema_url(
+        [
+            KeyValue::new(SERVICE_NAME, env!("CARGO_PKG_NAME")),
+            KeyValue::new(SERVICE_VERSION, env!("CARGO_PKG_VERSION")),
+            KeyValue::new(DEPLOYMENT_ENVIRONMENT_NAME, environment),
+        ],
+        SCHEMA_URL,
+    )
+}
+
+#[cfg(feature = "open-telemetry")]
+fn init_tracer(settings: &OpenTelemetrySettings) -> TracerProvider {
+    opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_trace_config(opentelemetry_sdk::trace::Config::default().with_resource(resource()))
+        .with_batch_config(BatchConfig::default())
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .http()
+                .with_endpoint(settings.trace_full_url())
+                .with_headers(settings.headers())
+                .with_timeout(std::time::Duration::from_secs(3)),
+        )
+        .install_batch(opentelemetry_sdk::runtime::Tokio)
+        .unwrap()
+}
+
+#[cfg(feature = "open-telemetry")]
+fn init_logger(settings: &OpenTelemetrySettings) -> LoggerProvider {
+    opentelemetry_otlp::new_pipeline()
+        .logging()
+        .with_resource(resource())
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .http()
+                .with_endpoint(settings.log_full_url())
+                .with_headers(settings.headers())
+                .with_timeout(std::time::Duration::from_secs(3)),
+        )
+        .install_batch(opentelemetry_sdk::runtime::Tokio)
+        .unwrap()
 }

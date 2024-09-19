@@ -13,3 +13,9 @@ email_client:
   authorization_token: "my-secret-token"
   timeout_milliseconds: 10000
 redis_uri: "redis://127.0.0.1:6379" # base port for redis
+otel:
+  auth_token: "cm9vdEBleGFtcGxlLmNvbTo1Ym9TN1cyanJod0dKdlR6"
+  port: 5080
+  base_url: "http://localhost"
+  trace_endpoint: "/api/default/v1/traces"
+  log_endpoint: "/api/default/v1/logs"

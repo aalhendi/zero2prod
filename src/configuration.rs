@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use secrecy::{ExposeSecret, Secret};
 use serde_aux::field_attributes::deserialize_number_from_string;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
@@ -13,6 +15,7 @@ pub struct Settings {
     pub email_client: EmailClientSettings,
     // URI marked as secret because it may embed a password
     pub redis_uri: Secret<String>,
+    pub otel: OpenTelemetrySettings,
 }
 
 #[derive(serde::Deserialize, Clone)]
@@ -82,6 +85,43 @@ impl DatabaseSettings {
         self.without_db()
             .database(&self.database_name)
             .log_statements(tracing_log::log::LevelFilter::Trace)
+    }
+}
+
+#[derive(serde::Deserialize, Clone)]
+pub struct OpenTelemetrySettings {
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    port: u16,
+    base_url: String,
+    trace_endpoint: String,
+    log_endpoint: String,
+    pub auth_token: Secret<String>,
+}
+
+impl OpenTelemetrySettings {
+    pub fn trace_full_url(&self) -> String {
+        format!(
+            "{base_url}:{port}{endpoint}",
+            base_url = self.base_url,
+            port = self.port,
+            endpoint = self.trace_endpoint
+        )
+    }
+
+    pub fn log_full_url(&self) -> String {
+        format!(
+            "{base_url}:{port}{endpoint}",
+            base_url = self.base_url,
+            port = self.port,
+            endpoint = self.log_endpoint
+        )
+    }
+
+    pub fn headers(&self) -> HashMap<String, String> {
+        HashMap::from([(
+            String::from("authorization"),
+            format!("Basic {token}", token = self.auth_token.expose_secret()),
+        )])
     }
 }
 
