@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use figment::providers::{Env, Format, Yaml};
+use figment::Figment;
 use secrecy::{ExposeSecret, Secret};
 use serde_aux::field_attributes::deserialize_number_from_string;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
@@ -131,7 +133,7 @@ impl OpenTelemetrySettings {
     }
 }
 
-pub fn get_configuration() -> Result<Settings, config::ConfigError> {
+pub fn get_configuration() -> Result<Settings, figment::Error> {
     let base_path = std::env::current_dir().expect("Failed to determine the current directory.");
     let configutation_directory = base_path.join("configuration");
 
@@ -141,23 +143,16 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         .expect("Failed to parse APP_ENVIRONMENT");
     let environment_filename = format!("{environment}.yaml", environment = environment.as_str());
 
-    let settings = config::Config::builder()
-        .add_source(config::File::from(
-            configutation_directory.join("base.yaml"),
-        ))
-        .add_source(config::File::from(
+    let settings = Figment::new()
+        .merge(Yaml::file(configutation_directory.join("base.yaml")))
+        .merge(Yaml::file(
             configutation_directory.join(environment_filename),
         ))
         // Settings from env vars prefix `APP_<x>` E.g. `APP_APPLICATION__PORT=5001 sets `Settings.application.port`
         // Allows overriding whatever is in configuration file
-        .add_source(
-            config::Environment::with_prefix("APP")
-                .prefix_separator("_")
-                .separator("__"),
-        )
-        .build()?;
+        .merge(Env::prefixed("APP_").split("__"));
 
-    settings.try_deserialize::<Settings>()
+    settings.extract()
 }
 
 /// The possible runtime environment for our application.

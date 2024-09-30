@@ -31,7 +31,7 @@ lto = true
 codegen-units = 1
 
 [dependencies]
-config = { git = "https://github.com/mehcode/config-rs", rev = "e3c1d0b" }
+figment = { version = "0.10", features = ["yaml", "env"] }
 serde-aux = "4.5"
 actix-web = "4"
 tracing = { version = "0.1", features = ["log"] }
