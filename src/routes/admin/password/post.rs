@@ -6,6 +6,7 @@ use crate::{
     },
     domain::SubscriberPassword,
     routes::admin::dashboard::get_username,
+    startup::AuthPepper,
     utils::{e500, see_other},
 };
 use actix_web::{web, HttpResponse};
@@ -24,8 +25,10 @@ pub async fn change_password(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>,
     user_id: web::ReqData<UserId>,
+    pepper: web::Data<AuthPepper>,
 ) -> Result<HttpResponse, actix_web::Error> {
     let user_id = user_id.into_inner();
+    let pepper = pepper.into_inner();
 
     if form.new_password.expose_secret() != form.new_password_check.expose_secret() {
         FlashMessage::error(
@@ -41,7 +44,7 @@ pub async fn change_password(
         password: form.0.current_password,
     };
 
-    if let Err(e) = validate_credentials(credentials, &pool).await {
+    if let Err(e) = validate_credentials(credentials, &pool, pepper.clone()).await {
         return match e {
             AuthError::InvalidCredentials(_) => {
                 FlashMessage::error("The current password is incorrect.").send();
@@ -59,7 +62,7 @@ pub async fn change_password(
         }
     };
 
-    authentication::password::change_password(user_id, new_password, &pool)
+    authentication::password::change_password(user_id, new_password, &pool, pepper)
         .await
         .map_err(e500)?;
     FlashMessage::error("Your password has been changed.").send();

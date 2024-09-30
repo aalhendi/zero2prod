@@ -16,6 +16,12 @@ pub struct Settings {
     // URI marked as secret because it may embed a password
     pub redis_uri: Secret<String>,
     pub otel: OpenTelemetrySettings,
+    pub auth: AuthSettings,
+}
+
+#[derive(serde::Deserialize, Clone)]
+pub struct AuthSettings {
+    pub pepper: Secret<String>,
 }
 
 #[derive(serde::Deserialize, Clone)]

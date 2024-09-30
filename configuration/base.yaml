@@ -19,3 +19,5 @@ otel:
   base_url: "http://localhost"
   trace_endpoint: "/api/default/v1/traces"
   log_endpoint: "/api/default/v1/logs"
+auth:
+  pepper: "your-secret-pepper-value"

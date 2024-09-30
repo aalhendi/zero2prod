@@ -1,5 +1,9 @@
+use std::sync::Arc;
+
 use super::middleware::UserId;
-use crate::{domain::SubscriberPassword, telemetry::spawn_blocking_with_tracing};
+use crate::{
+    domain::SubscriberPassword, startup::AuthPepper, telemetry::spawn_blocking_with_tracing,
+};
 use anyhow::Context;
 use argon2::{
     password_hash::SaltString, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
@@ -21,10 +25,11 @@ pub struct Credentials {
     pub password: Secret<String>,
 }
 
-#[tracing::instrument(name = "Validate credentials", skip(credentials, pool))]
+#[tracing::instrument(name = "Validate credentials", skip(credentials, pool, pepper))]
 pub async fn validate_credentials(
     credentials: Credentials,
     pool: &PgPool,
+    pepper: Arc<AuthPepper>,
 ) -> Result<uuid::Uuid, AuthError> {
     let mut user_id = None;
     // Establish fallback password (with salt and load parameters)
@@ -46,7 +51,7 @@ pub async fn validate_credentials(
     // Offload CPU-intensive workload (>1ms) to sperate threadpool.
     // These are reserved for blocking ops and don't interfere with scheduling of async tasks.
     spawn_blocking_with_tracing(move || {
-        verify_password_hash(expected_password_hash, credentials.password)
+        verify_password_hash(expected_password_hash, credentials.password, pepper)
     })
     .await
     .context("Failed to spawn blocking task.")??;
@@ -61,20 +66,21 @@ pub async fn validate_credentials(
 
 #[tracing::instrument(
     name = "Verify password hash",
-    skip(expected_password_hash, password_candidate)
+    skip(expected_password_hash, password_candidate, pepper)
 )]
 fn verify_password_hash(
     expected_password_hash: Secret<String>,
     password_candidate: Secret<String>,
+    pepper: Arc<AuthPepper>,
 ) -> Result<(), AuthError> {
     let expected_password_hash = PasswordHash::new(expected_password_hash.expose_secret())
         .context("Failed to parse hash in PHC string format.")?;
 
+    let mut peppered_password = password_candidate.expose_secret().as_bytes().to_vec();
+    peppered_password.extend_from_slice(pepper.expose().as_bytes());
+
     Argon2::default()
-        .verify_password(
-            password_candidate.expose_secret().as_bytes(),
-            &expected_password_hash,
-        )
+        .verify_password(&peppered_password, &expected_password_hash)
         .context("Invalid password.")
         .map_err(AuthError::InvalidCredentials)
 }
@@ -100,15 +106,17 @@ async fn get_stored_credentials(
     Ok(row)
 }
 
-#[tracing::instrument(name = "Change password", skip(password, pool))]
+#[tracing::instrument(name = "Change password", skip(password, pool, pepper))]
 pub async fn change_password(
     user_id: UserId,
     password: SubscriberPassword,
     pool: &PgPool,
+    pepper: Arc<AuthPepper>,
 ) -> Result<(), anyhow::Error> {
-    let password_hash = spawn_blocking_with_tracing(move || compute_password_hash(password))
-        .await?
-        .context("Failed to hash password")?;
+    let password_hash =
+        spawn_blocking_with_tracing(move || compute_password_hash(password, pepper))
+            .await?
+            .context("Failed to hash password")?;
     sqlx::query!(
         r#"
 UPDATE users
@@ -124,14 +132,20 @@ WHERE user_id = $2
     Ok(())
 }
 
-fn compute_password_hash(password: SubscriberPassword) -> Result<Secret<String>, anyhow::Error> {
+fn compute_password_hash(
+    password: SubscriberPassword,
+    pepper: Arc<AuthPepper>,
+) -> Result<Secret<String>, anyhow::Error> {
     let salt = SaltString::generate(&mut rand::thread_rng());
+    let mut peppered_password = password.expose().as_bytes().to_vec();
+    peppered_password.extend_from_slice(pepper.expose().as_bytes());
+
     let password_hash = Argon2::new(
         Algorithm::Argon2id,
         Version::V0x13,
         Params::new(15000, 2, 1, None).unwrap(),
     )
-    .hash_password(password.expose().as_bytes(), &salt)?
+    .hash_password(&peppered_password, &salt)?
     .to_string();
     Ok(Secret::new(password_hash))
 }

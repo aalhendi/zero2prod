@@ -7,7 +7,7 @@ use zero2prod::{
     configuration::{get_configuration, DatabaseSettings},
     email_client::EmailClient,
     issue_delivery_worker::{try_execute_task, ExecutionOutcome},
-    startup::{get_connection_pool, Application},
+    startup::{get_connection_pool, Application, AuthPepper},
     telemetry::{get_subscriber, init_subscriber},
 };
 
@@ -32,15 +32,18 @@ impl TestUser {
             password: Uuid::new_v4().to_string(),
         }
     }
-    async fn store(&self, pool: &PgPool) {
+    async fn store(&self, pool: &PgPool, pepper: AuthPepper) {
         let salt = SaltString::generate(&mut rand::thread_rng());
+        let mut peppered_password = self.password.as_bytes().to_vec();
+        peppered_password.extend_from_slice(pepper.expose().as_bytes());
+
         // Match parameters of the default password
         let password_hash = Argon2::new(
             argon2::Algorithm::Argon2id,
             argon2::Version::V0x13,
             argon2::Params::new(15000, 2, 1, None).unwrap(),
         )
-        .hash_password(self.password.as_bytes(), &salt)
+        .hash_password(&peppered_password, &salt)
         .unwrap()
         .to_string();
         sqlx::query!(
@@ -294,7 +297,10 @@ pub async fn spawn_app() -> TestApp {
         api_client,
         email_client: configuration.email_client.client(),
     };
-    test_app.test_user.store(&test_app.db_pool).await;
+    test_app
+        .test_user
+        .store(&test_app.db_pool, AuthPepper(configuration.auth.pepper))
+        .await;
     test_app
 }
 
