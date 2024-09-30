@@ -3,7 +3,6 @@
 - CI Flowchart
 - Clean up README
 - Build something like a spec.yaml manifest for deployments. Inject environment vars
-- Update validator crate
 - Consider proptest crate for property-based testing.
 - Use a proper templating solution for our emails (e.g. tera);
 - What happens if a user clicks on a confirmation link twice?
