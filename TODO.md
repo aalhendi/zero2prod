@@ -12,7 +12,6 @@
 - add password expiry
 - fix admin hash + document
 - docker compose
-- password service (?) instead of passing pepper
 
 ## Milestone Tasks
 

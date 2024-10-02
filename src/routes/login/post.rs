@@ -1,8 +1,7 @@
 use crate::{
-    authentication::password::{validate_credentials, AuthError, Credentials},
+    authentication::password::{AuthError, Credentials, PasswordService},
     routes::subscriptions::error_chain_fmt,
     session_state::TypedSession,
-    startup::AuthPepper,
 };
 use actix_web::{error::InternalError, http::header::LOCATION, web, HttpResponse};
 use actix_web_flash_messages::FlashMessage;
@@ -16,14 +15,15 @@ pub struct FormData {
 }
 
 #[tracing::instrument(
-    skip(form, pool, session, pepper),
+    skip(form, pool, session, password_service),
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
     )]
 pub async fn login(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>,
     session: TypedSession,
-    pepper: web::Data<AuthPepper>, // Use Actix's InternalError to take an error and its cause
+    password_service: web::Data<PasswordService>,
+    // Use Actix's InternalError to take an error and its cause
 ) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = Credentials {
         username: form.0.username,
@@ -31,7 +31,10 @@ pub async fn login(
     };
     tracing::Span::current().record("username", tracing::field::display(&credentials.username));
 
-    match validate_credentials(credentials, &pool, pepper.into_inner()).await {
+    match password_service
+        .validate_credentials(credentials, &pool)
+        .await
+    {
         Ok(user_id) => {
             tracing::Span::current().record("user_id", tracing::field::display(&user_id));
             // Renew the Session ID After Any Privilege Level Change

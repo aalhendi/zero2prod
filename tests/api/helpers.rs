@@ -1,13 +1,14 @@
 use std::sync::OnceLock;
 
 use argon2::{password_hash::SaltString, Argon2, PasswordHasher};
+use secrecy::{ExposeSecret, SecretString};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use zero2prod::{
     configuration::{get_configuration, DatabaseSettings},
     email_client::EmailClient,
     issue_delivery_worker::{try_execute_task, ExecutionOutcome},
-    startup::{get_connection_pool, Application, AuthPepper},
+    startup::{get_connection_pool, Application},
     telemetry::{get_subscriber, init_subscriber},
 };
 
@@ -32,10 +33,10 @@ impl TestUser {
             password: Uuid::new_v4().to_string(),
         }
     }
-    async fn store(&self, pool: &PgPool, pepper: AuthPepper) {
+    async fn store(&self, pool: &PgPool, pepper: SecretString) {
         let salt = SaltString::generate(&mut rand::thread_rng());
         let mut peppered_password = self.password.as_bytes().to_vec();
-        peppered_password.extend_from_slice(pepper.expose().as_bytes());
+        peppered_password.extend_from_slice(pepper.expose_secret().as_bytes());
 
         // Match parameters of the default password
         let password_hash = Argon2::new(
@@ -299,7 +300,7 @@ pub async fn spawn_app() -> TestApp {
     };
     test_app
         .test_user
-        .store(&test_app.db_pool, AuthPepper(configuration.auth.pepper))
+        .store(&test_app.db_pool, configuration.auth.pepper)
         .await;
     test_app
 }

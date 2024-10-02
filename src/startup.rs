@@ -8,7 +8,7 @@ use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing_actix_web::TracingLogger;
 
 use crate::{
-    authentication,
+    authentication::{self, password::PasswordService},
     configuration::{DatabaseSettings, Settings},
     email_client::EmailClient,
     routes,
@@ -49,7 +49,7 @@ impl Application {
             configuration.application.base_url,
             HmacSecret(configuration.application.hmac_secret),
             configuration.redis_uri,
-            AuthPepper(configuration.auth.pepper),
+            configuration.auth.pepper,
         )
         .await?;
 
@@ -74,13 +74,6 @@ pub fn get_connection_pool(configuration: DatabaseSettings) -> PgPool {
 /// Wrapper type in order to retrieve the URL
 /// Since actix-web retrival from context is type-based, using raw `String` causes conflicts.
 pub struct ApplicationBaseUrl(pub String);
-#[derive(Clone)]
-pub struct AuthPepper(pub SecretString);
-impl AuthPepper {
-    pub fn expose(&self) -> &str {
-        self.0.expose_secret()
-    }
-}
 
 async fn run(
     listener: TcpListener,
@@ -89,7 +82,7 @@ async fn run(
     base_url: String,
     hmac_secret: HmacSecret,
     redis_uri: Secret<String>,
-    pepper: AuthPepper,
+    pepper: SecretString,
 ) -> Result<Server, anyhow::Error> {
     // Wrap the connection in a smart pointer (Arc)
     let db_pool = web::Data::new(db_pool);
@@ -170,7 +163,7 @@ async fn run(
             .app_data(email_client.clone())
             .app_data(base_url.clone())
             .app_data(web::Data::new(hmac_secret.clone()))
-            .app_data(web::Data::new(pepper.clone()))
+            .app_data(web::Data::new(PasswordService::new(pepper.clone())))
     })
     .listen(listener)?
     .run();
