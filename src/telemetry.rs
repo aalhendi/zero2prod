@@ -10,12 +10,9 @@ use {
     crate::configuration::OpenTelemetrySettings,
     opentelemetry::{trace::TracerProvider as _, KeyValue},
     opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge,
-    opentelemetry_otlp::WithExportConfig,
+    opentelemetry_otlp::{WithExportConfig, WithHttpConfig},
     opentelemetry_sdk::{
-        logs::LoggerProvider,
-        metrics::SdkMeterProvider,
-        trace::{BatchConfig, TracerProvider},
-        Resource,
+        logs::LoggerProvider, metrics::SdkMeterProvider, runtime, trace::TracerProvider, Resource,
     },
     opentelemetry_semantic_conventions::{
         resource::{DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_NAME, SERVICE_VERSION},
@@ -134,33 +131,34 @@ fn resource() -> Resource {
 
 #[cfg(feature = "open-telemetry")]
 fn init_tracer(settings: &OpenTelemetrySettings) -> TracerProvider {
-    opentelemetry_otlp::new_pipeline()
-        .tracing()
-        .with_trace_config(opentelemetry_sdk::trace::Config::default().with_resource(resource()))
-        .with_batch_config(BatchConfig::default())
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .http()
-                .with_endpoint(settings.trace_full_url())
-                .with_headers(settings.headers())
-                .with_timeout(std::time::Duration::from_secs(3)),
-        )
-        .install_batch(opentelemetry_sdk::runtime::Tokio)
-        .unwrap()
+    use opentelemetry_sdk::trace::Config;
+
+    let exporter = opentelemetry_otlp::SpanExporter::builder()
+        .with_http()
+        .with_endpoint(settings.trace_full_url())
+        .with_headers(settings.headers())
+        .with_timeout(std::time::Duration::from_secs(3))
+        .build()
+        .unwrap();
+
+    TracerProvider::builder()
+        .with_batch_exporter(exporter, runtime::Tokio)
+        .with_config(Config::default().with_resource(resource()))
+        .build()
 }
 
 #[cfg(feature = "open-telemetry")]
 fn init_logger(settings: &OpenTelemetrySettings) -> LoggerProvider {
-    opentelemetry_otlp::new_pipeline()
-        .logging()
+    let exporter = opentelemetry_otlp::LogExporter::builder()
+        .with_http()
+        .with_endpoint(settings.log_full_url())
+        .with_headers(settings.headers())
+        .with_timeout(std::time::Duration::from_secs(3))
+        .build()
+        .unwrap();
+
+    LoggerProvider::builder()
         .with_resource(resource())
-        .with_exporter(
-            opentelemetry_otlp::new_exporter()
-                .http()
-                .with_endpoint(settings.log_full_url())
-                .with_headers(settings.headers())
-                .with_timeout(std::time::Duration::from_secs(3)),
-        )
-        .install_batch(opentelemetry_sdk::runtime::Tokio)
-        .unwrap()
+        .with_batch_exporter(exporter, runtime::Tokio)
+        .build()
 }

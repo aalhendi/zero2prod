@@ -58,14 +58,16 @@ TEST_LOG=true RUST_LOG=debug cargo run | bunyan
 
 OpenTelemetry via OpenObserve is optionally supported under the feature `open-telemetry`. You will also need to have an instance of OpenObserve running locally. The simplest way would be to spin up a container instance.
 
+Dont forget to add your auth token to the configuration.
+
 ```sh
 docker run -v $PWD/logs:/logs -e ZO_DATA_DIR="/logs" -p 5080:5080 \
     -e ZO_ROOT_USER_EMAIL="root@example.com" -e ZO_ROOT_USER_PASSWORD="Complexpass#123" \
-    public.ecr.aws/zinclabs/openobserve:v0.12.1
+    public.ecr.aws/zinclabs/openobserve:v0.13.1
 ```
 
 ```sh
-cargo run --features "open-observe"
+cargo run --features "open-telemetry"
 ```
 
 ## Building An Image
