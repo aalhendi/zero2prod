@@ -1,6 +1,5 @@
 # TODO
 
-- Clean up README
 - Build something like a spec.yaml manifest for deployments. Inject environment vars
 - Consider proptest crate for property-based testing.
 - Use a proper templating solution for our emails (e.g. tera);
