@@ -48,19 +48,9 @@ impl SubscriberPassword {
 mod tests {
     use super::*;
     use claims::{assert_err, assert_ok};
+    use proptest::{prelude::any, prop_assert, prop_compose, proptest};
     use rand::{prelude::Distribution, rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
     use secrecy::Secret;
-
-    #[derive(Debug, Clone)]
-    struct ValidPasswordFixture(pub String);
-
-    impl quickcheck::Arbitrary for ValidPasswordFixture {
-        fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-            let mut rng = StdRng::seed_from_u64(u64::arbitrary(g));
-            let password = generate_valid_password(&mut rng);
-            Self(password)
-        }
-    }
 
     fn generate_valid_password(rng: &mut impl Rng) -> String {
         let lowercase_chars: Vec<char> = ('a'..='z').collect();
@@ -97,9 +87,19 @@ mod tests {
         chars.into_iter().collect()
     }
 
-    #[quickcheck_macros::quickcheck]
-    fn valid_passwords_are_accepted(valid_password: ValidPasswordFixture) -> bool {
-        SubscriberPassword::parse(Secret::new(valid_password.0)).is_ok()
+    prop_compose! {
+        fn valid_password_strategy()
+            (seed in any::<u64>()) -> String {
+            let mut rng = StdRng::seed_from_u64(seed);
+            generate_valid_password(&mut rng)
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn valid_passwords_are_accepted(password in valid_password_strategy()) {
+            prop_assert!(SubscriberPassword::parse(Secret::new(password)).is_ok());
+        }
     }
 
     #[test]
