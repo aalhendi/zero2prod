@@ -8,8 +8,8 @@
 - enhance issue_delivery_queue - e.g. adding a n_retries and execute_after
 - add password reset
 - add password expiry
-- fix admin hash + document
 - docker compose
+- refactor migrations into core and seed migrations (so admin user doesn't get seeded into prod env lol)
 
 ## Milestone Tasks
 
