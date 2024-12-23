@@ -130,6 +130,14 @@ async fn run(
             .route("/", web::get().to(routes::home::home))
             .route("/login", web::get().to(routes::login::get::login_form))
             .route("/login", web::post().to(routes::login::post::login))
+            .route(
+                "/password-reset",
+                web::get().to(routes::forgot_password::get::forgot_password_form),
+            )
+            .route(
+                "/password-reset",
+                web::post().to(routes::forgot_password::post::forgot_password),
+            )
             .service(
                 web::scope("/admin")
                     .wrap(from_fn(authentication::middleware::reject_anonymous_users))
