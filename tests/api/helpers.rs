@@ -32,7 +32,7 @@ impl TestUser {
             user_id: Uuid::new_v4(),
             username: Uuid::new_v4().to_string(),
             password: Uuid::new_v4().to_string(),
-            email: String::from("admin@admin.com"),
+            email: String::from("the_john_doe@example.com"),
         }
     }
     async fn store(&self, pool: &PgPool, pepper: SecretString) {
@@ -212,6 +212,19 @@ impl TestApp {
     pub async fn post_logout(&self) -> reqwest::Response {
         self.api_client
             .post(format!("{address}/admin/logout", address = &self.address))
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
+    pub async fn post_forgot_password<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
+        self.api_client
+            .post(format!("{address}/password-reset", address = &self.address))
+            // `reqwest` method ensures body is URL-encoded && `Content-Type` header is set accordingly.
+            .form(body)
             .send()
             .await
             .expect("Failed to execute request.")
