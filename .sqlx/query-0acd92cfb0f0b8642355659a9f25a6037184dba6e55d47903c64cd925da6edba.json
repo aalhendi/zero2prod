@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "ALTER TABLE password_resets DROP COLUMN token_hash;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "0acd92cfb0f0b8642355659a9f25a6037184dba6e55d47903c64cd925da6edba"
+}
