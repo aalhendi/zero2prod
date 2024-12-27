@@ -675,6 +675,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "const-hex"
+version = "1.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b0485bab839b018a8f1723fc5391819fea5f8f0f32288ef8a735fd096b6160c"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "hex",
+ "proptest",
+ "serde",
+]
+
+[[package]]
 name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4201,6 +4214,7 @@ dependencies = [
  "argon2",
  "chrono",
  "claims",
+ "const-hex",
  "fake",
  "figment",
  "linkify",
@@ -4217,6 +4231,7 @@ dependencies = [
  "serde-aux",
  "serde_json",
  "serde_urlencoded",
+ "sha2",
  "sqlx",
  "thiserror 1.0.69",
  "tokio",

@@ -7,6 +7,7 @@ use crate::{
 use actix_web::{error::InternalError, web, HttpResponse};
 use actix_web_flash_messages::FlashMessage;
 use anyhow::anyhow;
+use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -132,14 +133,14 @@ async fn insert_reset_token(
     user_id: Uuid,
     reset_token: &PasswordResetToken,
 ) -> Result<(), sqlx::Error> {
-    // Adjust the schema/fields as needed (e.g., token expiration).
+    let token_hash = const_hex::encode(Sha256::digest(reset_token.as_ref()));
     sqlx::query!(
         r#"
-        INSERT INTO password_resets (user_id, reset_token, created_at)
+        INSERT INTO password_resets (user_id, token_hash, created_at)
         VALUES ($1, $2, NOW())
         "#,
         user_id,
-        reset_token.as_ref()
+        token_hash,
     )
     .execute(pool)
     .await?;

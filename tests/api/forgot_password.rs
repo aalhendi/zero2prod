@@ -42,13 +42,13 @@ async fn forgot_password_stores_reset_token_for_valid_user() {
 
     // Assert
     let record = query!(
-        r#"SELECT reset_token FROM password_resets WHERE user_id = $1"#,
+        r#"SELECT token_hash FROM password_resets WHERE user_id = $1"#,
         app.test_user.user_id
     )
     .fetch_one(&app.db_pool)
     .await
     .expect("Failed to fetch password reset token");
-    assert!(!record.reset_token.is_empty());
+    assert!(!record.token_hash.is_empty());
 }
 
 // Example: Ensure we do NOT reveal that the user doesn't exist
@@ -125,7 +125,7 @@ async fn forgot_password_fails_if_there_is_a_fatal_database_error() {
     let body = serde_json::json!({"email": app.test_user.email});
 
     // We sabotage the table for testing
-    sqlx::query!("ALTER TABLE password_resets DROP COLUMN reset_token;")
+    sqlx::query!("ALTER TABLE password_resets DROP COLUMN token_hash;")
         .execute(&app.db_pool)
         .await
         .unwrap();

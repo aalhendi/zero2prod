@@ -78,6 +78,8 @@ reqwest = { version = "0.12", default-features = false, features = [
     "rustls-tls",
     "cookies",
 ] }
+sha2 = "0.10.8"
+const-hex = "1.14.0"
 
 # used exclusively for testing, not compiled in release binary
 [dev-dependencies]
