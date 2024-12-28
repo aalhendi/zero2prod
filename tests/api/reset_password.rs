@@ -6,7 +6,7 @@ use wiremock::{
 };
 
 #[tokio::test]
-async fn forgot_password_returns_200_for_valid_email() {
+async fn reset_password_returns_200_for_valid_email() {
     // Arrange
     let app = spawn_app().await;
     let body = serde_json::json!({"email": app.test_user.email});
@@ -18,7 +18,7 @@ async fn forgot_password_returns_200_for_valid_email() {
         .await;
 
     // Act
-    let response = app.post_forgot_password(&body).await;
+    let response = app.post_reset_password(&body).await;
 
     // Assert
     assert_eq!(200, response.status().as_u16());
@@ -26,7 +26,7 @@ async fn forgot_password_returns_200_for_valid_email() {
 
 // Example: Ensure the reset token is stored for valid user
 #[tokio::test]
-async fn forgot_password_stores_reset_token_for_valid_user() {
+async fn reset_password_stores_reset_token_for_valid_user() {
     // Arrange
     let app = spawn_app().await;
     let body = serde_json::json!({"email": app.test_user.email});
@@ -38,7 +38,7 @@ async fn forgot_password_stores_reset_token_for_valid_user() {
         .await;
 
     // Act
-    let _response = app.post_forgot_password(&body).await;
+    let _response = app.post_reset_password(&body).await;
 
     // Assert
     let record = query!(
@@ -53,7 +53,7 @@ async fn forgot_password_stores_reset_token_for_valid_user() {
 
 // Example: Ensure we do NOT reveal that the user doesn't exist
 #[tokio::test]
-async fn forgot_password_returns_200_for_nonexistent_email() {
+async fn reset_password_returns_200_for_nonexistent_email() {
     // Arrange
     let app = spawn_app().await;
     let body = serde_json::json!({"email": "invalid@example.com"});
@@ -68,7 +68,7 @@ async fn forgot_password_returns_200_for_nonexistent_email() {
         .await;
 
     // Act
-    let response = app.post_forgot_password(&body).await;
+    let response = app.post_reset_password(&body).await;
 
     // Assert
     // We expect a 200 or redirect, but crucially not an error that reveals no user
@@ -77,7 +77,7 @@ async fn forgot_password_returns_200_for_nonexistent_email() {
 
 // Example: Ensure we actually send an email
 #[tokio::test]
-async fn forgot_password_sends_email_to_valid_user() {
+async fn reset_password_sends_email_to_valid_user() {
     // Arrange
     let app = spawn_app().await;
     let body = serde_json::json!({"email": app.test_user.email});
@@ -90,14 +90,14 @@ async fn forgot_password_sends_email_to_valid_user() {
         .await;
 
     // Act
-    app.post_forgot_password(&body).await;
+    app.post_reset_password(&body).await;
 
     // Assert - wiremock will verify it saw 1 request on drop (because .expect(1))
 }
 
 // Example: Test for invalid email in the request body
 #[tokio::test]
-async fn forgot_password_returns_400_for_invalid_email() {
+async fn reset_password_returns_400_for_invalid_email() {
     // Arrange
     let app = spawn_app().await;
     let invalid_emails = vec!["", "not-an-email-address", "   ", "foo@@bar.com"];
@@ -106,7 +106,7 @@ async fn forgot_password_returns_400_for_invalid_email() {
         let body = serde_json::json!({"email": email});
 
         // Act
-        let response = app.post_forgot_password(&body).await;
+        let response = app.post_reset_password(&body).await;
 
         // Assert
         assert_eq!(
@@ -119,7 +119,7 @@ async fn forgot_password_returns_400_for_invalid_email() {
 
 // Example: If DB fails, we get a 500
 #[tokio::test]
-async fn forgot_password_fails_if_there_is_a_fatal_database_error() {
+async fn reset_password_fails_if_there_is_a_fatal_database_error() {
     // Arrange
     let app = spawn_app().await;
     let body = serde_json::json!({"email": app.test_user.email});
@@ -131,7 +131,7 @@ async fn forgot_password_fails_if_there_is_a_fatal_database_error() {
         .unwrap();
 
     // Act
-    let response = app.post_forgot_password(&body).await;
+    let response = app.post_reset_password(&body).await;
 
     // Assert
     assert_eq!(500, response.status().as_u16());

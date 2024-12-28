@@ -132,11 +132,11 @@ async fn run(
             .route("/login", web::post().to(routes::login::post::login))
             .route(
                 "/password-reset",
-                web::get().to(routes::forgot_password::get::forgot_password_form),
+                web::get().to(routes::reset_password::get::reset_password_form),
             )
             .route(
                 "/password-reset",
-                web::post().to(routes::forgot_password::post::forgot_password),
+                web::post().to(routes::reset_password::post::reset_password),
             )
             .service(
                 web::scope("/admin")

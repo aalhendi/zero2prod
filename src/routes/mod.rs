@@ -1,5 +1,5 @@
 pub mod admin;
-pub mod forgot_password;
+pub mod reset_password;
 pub mod health_check;
 pub mod home;
 pub mod login;

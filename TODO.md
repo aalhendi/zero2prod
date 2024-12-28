@@ -7,8 +7,8 @@
 - Seed admin should be able to invite more collaborators. impl login-protected functionality (subscription flow for inspiration)
 - enhance issue_delivery_queue - e.g. adding a n_retries and execute_after
 - password reset confirmation
-- password reset generation test
 - password reset confirmation test
+- password reset rate limiting
 - add password expiry
 - docker compose
 - refactor migrations into core and seed migrations (so admin user doesn't get seeded into prod env lol)

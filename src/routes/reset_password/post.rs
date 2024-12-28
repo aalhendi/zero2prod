@@ -20,7 +20,7 @@ pub struct FormData {
     skip(form, pool, email_client, base_url),
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
     )]
-pub async fn forgot_password(
+pub async fn reset_password(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
@@ -117,7 +117,9 @@ async fn get_user_id_and_username_by_email(
 ) -> Result<Option<(Uuid, String)>, sqlx::Error> {
     let maybe_user = sqlx::query!(
         r#"
-        SELECT * FROM users WHERE email = $1
+        SELECT user_id, username
+        FROM users
+        WHERE email = $1
         "#,
         email.as_ref()
     )
@@ -136,8 +138,8 @@ async fn insert_reset_token(
     let token_hash = const_hex::encode(Sha256::digest(reset_token.as_ref()));
     sqlx::query!(
         r#"
-        INSERT INTO password_resets (user_id, token_hash, created_at)
-        VALUES ($1, $2, NOW())
+        INSERT INTO password_resets (user_id, token_hash, created_at, expires_at)
+        VALUES ($1, $2, NOW(), NOW() + INTERVAL '1 hour')
         "#,
         user_id,
         token_hash,

@@ -2,7 +2,7 @@ use actix_web::{http::header::ContentType, HttpResponse};
 use actix_web_flash_messages::IncomingFlashMessages;
 use std::fmt::Write;
 
-pub async fn forgot_password_form(flash_messages: IncomingFlashMessages) -> HttpResponse {
+pub async fn reset_password_form(flash_messages: IncomingFlashMessages) -> HttpResponse {
     let mut error_html = String::new();
     for m in flash_messages.iter() {
         writeln!(error_html, "<p><i>{content}</i></p>", content = m.content()).unwrap();
@@ -25,7 +25,7 @@ pub async fn forgot_password_form(flash_messages: IncomingFlashMessages) -> Http
         >Email
         <input type="email" placeholder="Enter Email" name="email" />
       </label>
-      <button type="submit">Forgot Password</button>
+      <button type="submit">Reset Password</button>
     </form>
   </body>
 </html>
