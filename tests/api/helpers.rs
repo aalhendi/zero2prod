@@ -6,6 +6,7 @@ use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use zero2prod::{
     configuration::{get_configuration, DatabaseSettings},
+    domain::PasswordResetToken,
     email_client::EmailClient,
     issue_delivery_worker::{try_execute_task, ExecutionOutcome},
     startup::{get_connection_pool, Application},
@@ -195,6 +196,21 @@ impl TestApp {
 
     pub async fn get_change_password_html(&self) -> String {
         self.get_change_password().await.text().await.unwrap()
+    }
+
+    pub async fn get_password_reset_confirm(
+        &self,
+        token: &PasswordResetToken,
+    ) -> reqwest::Response {
+        self.api_client
+            .get(format!(
+                "{address}/password-reset/confirm?token={token}",
+                address = &self.address,
+                token = token.as_ref()
+            ))
+            .send()
+            .await
+            .expect("Failed to execute request.")
     }
 
     pub async fn post_change_password<Body>(&self, body: &Body) -> reqwest::Response
