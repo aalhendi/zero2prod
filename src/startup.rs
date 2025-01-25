@@ -138,6 +138,14 @@ async fn run(
                 "/password-reset",
                 web::post().to(routes::reset_password::post::reset_password),
             )
+            .route(
+                "/password-reset/confirm",
+                web::get().to(routes::reset_password::confirm::get::confirm_reset_password_form),
+            )
+            .route(
+                "/password-reset/confirm",
+                web::post().to(routes::reset_password::confirm::post::reset_password_confirm),
+            )
             .service(
                 web::scope("/admin")
                     .wrap(from_fn(authentication::middleware::reject_anonymous_users))

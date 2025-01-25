@@ -6,6 +6,7 @@ use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use zero2prod::{
     configuration::{get_configuration, DatabaseSettings},
+    domain::PasswordResetToken,
     email_client::EmailClient,
     issue_delivery_worker::{try_execute_task, ExecutionOutcome},
     startup::{get_connection_pool, Application},
@@ -197,6 +198,21 @@ impl TestApp {
         self.get_change_password().await.text().await.unwrap()
     }
 
+    pub async fn get_password_reset_confirm(
+        &self,
+        token: &PasswordResetToken,
+    ) -> reqwest::Response {
+        self.api_client
+            .get(format!(
+                "{address}/password-reset/confirm?token={token}",
+                address = &self.address,
+                token = token.as_ref()
+            ))
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
     pub async fn post_change_password<Body>(&self, body: &Body) -> reqwest::Response
     where
         Body: serde::Serialize,
@@ -223,6 +239,22 @@ impl TestApp {
     {
         self.api_client
             .post(format!("{address}/password-reset", address = &self.address))
+            // `reqwest` method ensures body is URL-encoded && `Content-Type` header is set accordingly.
+            .form(body)
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
+    pub async fn post_reset_password_confirm<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
+        self.api_client
+            .post(format!(
+                "{address}/password-reset/confirm",
+                address = &self.address
+            ))
             // `reqwest` method ensures body is URL-encoded && `Content-Type` header is set accordingly.
             .form(body)
             .send()
@@ -353,4 +385,12 @@ async fn configure_database(config: &DatabaseSettings) -> PgPool {
 pub fn assert_is_redirect_to(response: &reqwest::Response, location: &str) {
     assert_eq!(response.status().as_u16(), 303);
     assert_eq!(response.headers().get("Location").unwrap(), location);
+}
+
+/// Parse a token from a URL’s query parameters.
+pub fn extract_token(url: &reqwest::Url, param_name: &str) -> String {
+    url.query_pairs()
+        .find(|(k, _)| k == param_name)
+        .map(|(_, v)| v.to_string())
+        .expect("Missing token query parameter")
 }

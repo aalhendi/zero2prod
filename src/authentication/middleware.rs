@@ -23,6 +23,12 @@ impl std::ops::Deref for UserId {
     }
 }
 
+impl From<Uuid> for UserId {
+    fn from(value: Uuid) -> Self {
+        Self(value)
+    }
+}
+
 pub async fn reject_anonymous_users(
     mut req: ServiceRequest,
     next: Next<impl MessageBody>,

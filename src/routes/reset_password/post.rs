@@ -3,6 +3,7 @@ use crate::{
     email_client::EmailClient,
     routes::subscriptions::error_chain_fmt,
     startup::ApplicationBaseUrl,
+    utils::see_other,
 };
 use actix_web::{error::InternalError, web, HttpResponse};
 use actix_web_flash_messages::FlashMessage;
@@ -78,8 +79,7 @@ pub async fn reset_password(
     }
 
     FlashMessage::info("If that email is in our system, we sent a reset link.").send();
-    // TODO(aalhendi): Is this it? or do I want to redirect?
-    Ok(HttpResponse::Ok().finish())
+    Ok(see_other("/login"))
 }
 
 #[tracing::instrument(

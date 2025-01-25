@@ -1,4 +1,4 @@
-use crate::helpers::spawn_app;
+use crate::helpers::{assert_is_redirect_to, spawn_app};
 use sqlx::query;
 use wiremock::{
     matchers::{method, path},
@@ -6,7 +6,7 @@ use wiremock::{
 };
 
 #[tokio::test]
-async fn reset_password_returns_200_for_valid_email() {
+async fn reset_password_redirects_to_login_for_valid_email() {
     // Arrange
     let app = spawn_app().await;
     let body = serde_json::json!({"email": app.test_user.email});
@@ -21,7 +21,15 @@ async fn reset_password_returns_200_for_valid_email() {
     let response = app.post_reset_password(&body).await;
 
     // Assert
-    assert_eq!(200, response.status().as_u16());
+    assert_is_redirect_to(&response, "/login");
+
+    // Act - Part 2 - Follow the redirect
+    let html_page = app.get_login_html().await;
+
+    // Assert
+    assert!(
+        html_page.contains("<p><i>If that email is in our system, we sent a reset link.</i></p>")
+    );
 }
 
 // Example: Ensure the reset token is stored for valid user

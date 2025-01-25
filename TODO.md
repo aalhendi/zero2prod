@@ -6,12 +6,17 @@
 - What happens if the subscription token is well-formatted but non-existent?
 - Seed admin should be able to invite more collaborators. impl login-protected functionality (subscription flow for inspiration)
 - enhance issue_delivery_queue - e.g. adding a n_retries and execute_after
-- password reset confirmation
 - password reset confirmation test
 - password reset rate limiting
+- clean up routes... segment (?)
 - add password expiry
 - docker compose
 - refactor migrations into core and seed migrations (so admin user doesn't get seeded into prod env lol)
+- migrate to `bacon` from `cargo-watch`
+- document `cargo-nextest`
+- tracing_log_error
+- cargo-semver
+- introduce repository layer
 
 ## Milestone Tasks
 

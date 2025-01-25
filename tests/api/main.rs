@@ -4,10 +4,11 @@
 
 mod admin_dashboard;
 mod change_password;
-mod reset_password;
 mod health_check;
 mod helpers;
 mod login;
 mod newsletter;
+mod reset_password;
+mod reset_password_confirm;
 mod subscriptions;
 mod subscriptions_confirm;
