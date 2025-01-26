@@ -24,34 +24,40 @@ pub async fn reset_password_confirm(
     pool: web::Data<PgPool>,
     password_service: web::Data<PasswordService>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    // 1. Validate passwords match
-    if form.new_password.expose_secret() != form.new_password_check.expose_secret() {
-        FlashMessage::error(
-            "You entered two different new passwords - the field values must match.",
-        )
-        .send();
-        return Ok(see_other("/password-reset/confirm"));
-    }
-
-    // 2. Validate password strength
-    let new_password = match SubscriberPassword::parse(form.0.new_password) {
-        Ok(p) => p,
-        Err(e) => {
-            FlashMessage::error(e).send();
-            return Ok(see_other("/password-reset/confirm"));
-        }
-    };
-
-    // 3. Validate token
+    // 1. Validate token
     let token = PasswordResetToken::parse(form.0.token.expose_secret().to_string())
-        .map_err(ResetPasswordError::Validation)?;
+        .map_err(|_| ResetPasswordError::InvalidToken)?;
 
-    // 4. Check token validity
+    // 2. Check token validity
     let (user_id, token_hash) = get_user_id_by_token(&pool, &token)
         .await
         .context("Failed to query password reset token")
         .map_err(ResetPasswordError::Unexpected)?
         .ok_or(ResetPasswordError::InvalidToken)?;
+
+    // 3. Validate passwords match
+    if form.new_password.expose_secret() != form.new_password_check.expose_secret() {
+        FlashMessage::error(
+            "You entered two different new passwords - the field values must match.",
+        )
+        .send();
+        return Ok(see_other(&format!(
+            "/password-reset/confirm?token={token}",
+            token = token.as_ref()
+        )));
+    }
+
+    // 4. Validate password strength
+    let new_password = match SubscriberPassword::parse(form.0.new_password) {
+        Ok(p) => p,
+        Err(e) => {
+            FlashMessage::error(e).send();
+            return Ok(see_other(&format!(
+                "/password-reset/confirm?token={token}",
+                token = token.as_ref()
+            )));
+        }
+    };
 
     // 5. Update password
     password_service
@@ -102,12 +108,10 @@ async fn mark_token_as_used(pool: &PgPool, token_hash: &str) -> Result<(), sqlx:
 
 #[derive(thiserror::Error)]
 pub enum ResetPasswordError {
-    #[error("Invalid token")]
+    #[error("Invalid or expired password reset token.")]
     InvalidToken,
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),
-    #[error("{0}")]
-    Validation(String),
 }
 
 // Use custom `Debug` impl for nice report using error source chain
@@ -122,7 +126,6 @@ impl actix_web::ResponseError for ResetPasswordError {
         match self {
             ResetPasswordError::InvalidToken => StatusCode::BAD_REQUEST,
             ResetPasswordError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ResetPasswordError::Validation(_) => StatusCode::BAD_REQUEST,
         }
     }
     // fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {}

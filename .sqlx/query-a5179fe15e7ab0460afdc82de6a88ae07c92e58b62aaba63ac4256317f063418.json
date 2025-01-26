@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE password_resets SET expires_at = now() - interval '1 hour' WHERE user_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a5179fe15e7ab0460afdc82de6a88ae07c92e58b62aaba63ac4256317f063418"
+}

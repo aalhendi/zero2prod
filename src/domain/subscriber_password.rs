@@ -2,6 +2,9 @@ use secrecy::{ExposeSecret, Secret};
 
 const PASSWORD_MIN_LENGTH: usize = 8;
 const PASSWORD_MAX_LENGTH: usize = 128;
+// Precompute the error messages at compile time
+const PASSWORD_TOO_SHORT_MSG: &str = "Password must be 8 characters or longer.";
+const PASSWORD_TOO_LONG_MSG: &str = "Password must be 128 characters or shorter.";
 
 #[derive(Debug, Clone)]
 pub struct SubscriberPassword(Secret<String>);
@@ -18,22 +21,12 @@ impl SubscriberPassword {
         }
         // is_too_short
         if s.expose_secret().len() < PASSWORD_MIN_LENGTH {
-            let err_str = concat!(
-                "Password must be ",
-                stringify!(PASSWORD_MIN_LENGTH),
-                " characters or longer."
-            );
-            return Err(err_str);
+            return Err(PASSWORD_TOO_SHORT_MSG);
         }
 
         // is_too_long
         if s.expose_secret().len() > PASSWORD_MAX_LENGTH {
-            let err_str = concat!(
-                "Password must be ",
-                stringify!(PASSWORD_MIN_LENGTH),
-                " characters or shorter."
-            );
-            return Err(err_str);
+            return Err(PASSWORD_TOO_LONG_MSG);
         }
 
         Ok(Self(s))

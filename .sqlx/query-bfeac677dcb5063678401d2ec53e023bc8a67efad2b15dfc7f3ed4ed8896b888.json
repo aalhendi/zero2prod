@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DROP TABLE password_resets",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "bfeac677dcb5063678401d2ec53e023bc8a67efad2b15dfc7f3ed4ed8896b888"
+}
