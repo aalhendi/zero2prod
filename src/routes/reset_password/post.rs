@@ -1,6 +1,7 @@
 use crate::{
     domain::{PasswordResetToken, SubscriberEmail},
     email_client::EmailClient,
+    repository::{password_resets::PasswordResetRepository, user_repository::UserRepository},
     routes::subscriptions::error_chain_fmt,
     startup::ApplicationBaseUrl,
     utils::see_other,
@@ -8,9 +9,7 @@ use crate::{
 use actix_web::{error::InternalError, web, HttpResponse};
 use actix_web_flash_messages::FlashMessage;
 use anyhow::anyhow;
-use sha2::{Digest, Sha256};
 use sqlx::PgPool;
-use uuid::Uuid;
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -38,7 +37,13 @@ pub async fn reset_password(
         }
     };
 
-    let (user_id, username) = match get_user_id_and_username_by_email(&pool, &user_email).await {
+    let password_reset_repo = PasswordResetRepository::new(&pool);
+    let user_repo = UserRepository::new(&pool);
+
+    let (user_id, username) = match user_repo
+        .get_user_id_and_username_by_email(&user_email)
+        .await
+    {
         Ok(Some((id, username))) => (id, username),
         Ok(None) => {
             // Security: do not reveal that the user doesn't exist. Act as if eveything is fine. This prevents user enumeration.
@@ -56,7 +61,10 @@ pub async fn reset_password(
 
     let reset_token = PasswordResetToken::default();
 
-    if let Err(e) = insert_reset_token(&pool, user_id, &reset_token).await {
+    if let Err(e) = password_reset_repo
+        .insert_reset_token(user_id, &reset_token)
+        .await
+    {
         return Err(InternalError::from_response(
             ForgotPasswordError::UnexpectedError(anyhow!(e)),
             HttpResponse::InternalServerError().finish(),
@@ -108,45 +116,6 @@ pub async fn send_password_reset_email(
     email_client
         .send_email(email, "Password Reset Request", &html_body, &plain_body)
         .await
-}
-
-#[tracing::instrument(name = "Lookup user by email", skip(email, pool))]
-async fn get_user_id_and_username_by_email(
-    pool: &PgPool,
-    email: &SubscriberEmail,
-) -> Result<Option<(Uuid, String)>, sqlx::Error> {
-    let maybe_user = sqlx::query!(
-        r#"
-        SELECT user_id, username
-        FROM users
-        WHERE email = $1
-        "#,
-        email.as_ref()
-    )
-    .fetch_optional(pool)
-    .await?;
-
-    Ok(maybe_user.map(|r| (r.user_id, r.username)))
-}
-
-#[tracing::instrument(name = "Insert password reset token", skip(pool, user_id, reset_token))]
-async fn insert_reset_token(
-    pool: &PgPool,
-    user_id: Uuid,
-    reset_token: &PasswordResetToken,
-) -> Result<(), sqlx::Error> {
-    let token_hash = const_hex::encode(Sha256::digest(reset_token.as_ref()));
-    sqlx::query!(
-        r#"
-        INSERT INTO password_resets (user_id, token_hash, created_at, expires_at)
-        VALUES ($1, $2, NOW(), NOW() + INTERVAL '1 hour')
-        "#,
-        user_id,
-        token_hash,
-    )
-    .execute(pool)
-    .await?;
-    Ok(())
 }
 
 #[derive(thiserror::Error)]

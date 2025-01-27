@@ -15,7 +15,7 @@
 - document `cargo-nextest`
 - tracing_log_error
 - cargo-semver
-- introduce repository layer
+- transition idempotency and newsletter into repository 
 - cargo-nextest
 
 ## Milestone Tasks

@@ -4,7 +4,7 @@ use crate::{
         password::{AuthError, Credentials, PasswordService},
     },
     domain::SubscriberPassword,
-    routes::admin::dashboard::get_username,
+    repository::user_repository::UserRepository,
     utils::{e500, see_other},
 };
 use actix_web::{web, HttpResponse};
@@ -35,7 +35,8 @@ pub async fn change_password(
         return Ok(see_other("/admin/password"));
     }
 
-    let username = get_username(user_id, &pool).await.map_err(e500)?;
+    let user_repo = UserRepository::new(&pool);
+    let username = user_repo.get_username(user_id).await.map_err(e500)?;
     let credentials = Credentials {
         username,
         password: form.0.current_password,
