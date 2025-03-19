@@ -131,8 +131,6 @@ fn resource() -> Resource {
 
 #[cfg(feature = "open-telemetry")]
 fn init_tracer(settings: &OpenTelemetrySettings) -> TracerProvider {
-    use opentelemetry_sdk::trace::Config;
-
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_http()
         .with_endpoint(settings.trace_full_url())
@@ -143,7 +141,7 @@ fn init_tracer(settings: &OpenTelemetrySettings) -> TracerProvider {
 
     TracerProvider::builder()
         .with_batch_exporter(exporter, runtime::Tokio)
-        .with_config(Config::default().with_resource(resource()))
+        .with_resource(resource())
         .build()
 }
 
