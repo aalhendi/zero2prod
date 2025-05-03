@@ -1,4 +1,4 @@
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretString};
 
 const PASSWORD_MIN_LENGTH: usize = 8;
 const PASSWORD_MAX_LENGTH: usize = 128;
@@ -7,10 +7,10 @@ const PASSWORD_TOO_SHORT_MSG: &str = "Password must be 8 characters or longer.";
 const PASSWORD_TOO_LONG_MSG: &str = "Password must be 128 characters or shorter.";
 
 #[derive(Debug, Clone)]
-pub struct SubscriberPassword(Secret<String>);
+pub struct SubscriberPassword(SecretString);
 
 impl SubscriberPassword {
-    pub fn parse(s: Secret<String>) -> Result<Self, &'static str> {
+    pub fn parse(s: SecretString) -> Result<Self, &'static str> {
         // is_empty_or_whitespace
         if s.expose_secret().trim().is_empty() {
             return Err("Password cannot be empty or only whitespace.");
@@ -42,8 +42,13 @@ mod tests {
     use super::*;
     use claims::{assert_err, assert_ok};
     use proptest::{prelude::any, prop_assert, prop_compose, proptest};
-    use rand::{prelude::Distribution, rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
-    use secrecy::Secret;
+    use rand::{
+        prelude::Distribution,
+        rngs::StdRng,
+        seq::{IndexedRandom, SliceRandom},
+        Rng, SeedableRng,
+    };
+    use secrecy::SecretString;
 
     fn generate_valid_password(rng: &mut impl Rng) -> String {
         let lowercase_chars: Vec<char> = ('a'..='z').collect();
@@ -51,7 +56,7 @@ mod tests {
         let digit_chars: Vec<char> = ('0'..='9').collect();
         let special_chars: Vec<char> = "!@#$%^&*()_+-=[]{}|;:,.<>?".chars().collect();
 
-        let length = rng.gen_range(PASSWORD_MIN_LENGTH..=PASSWORD_MAX_LENGTH);
+        let length = rng.random_range(PASSWORD_MIN_LENGTH..=PASSWORD_MAX_LENGTH);
         let mut password = String::with_capacity(length);
 
         // Ensure at least one of each character type
@@ -68,7 +73,7 @@ mod tests {
             &special_chars[..],
         ]
         .concat();
-        let dist = rand::distributions::Uniform::from(0..all_chars.len());
+        let dist = rand::distr::Uniform::try_from(0..all_chars.len()).unwrap();
 
         for _ in password.len()..length {
             password.push(all_chars[dist.sample(rng)]);
@@ -91,43 +96,43 @@ mod tests {
     proptest! {
         #[test]
         fn valid_passwords_are_accepted(password in valid_password_strategy()) {
-            prop_assert!(SubscriberPassword::parse(Secret::new(password)).is_ok());
+            prop_assert!(SubscriberPassword::parse(SecretString::from(password)).is_ok());
         }
     }
 
     #[test]
     fn a_valid_password_is_accepted() {
-        let password = Secret::new("validpass123".to_string());
+        let password = SecretString::from("validpass123");
         assert_ok!(SubscriberPassword::parse(password));
     }
 
     #[test]
     fn empty_password_is_rejected() {
-        let password = Secret::new(String::new());
+        let password = SecretString::from(String::new());
         assert_err!(SubscriberPassword::parse(password));
     }
 
     #[test]
     fn whitespace_only_password_is_rejected() {
-        let password = Secret::new(String::from(" "));
+        let password = SecretString::from(String::from(" "));
         assert_err!(SubscriberPassword::parse(password));
     }
 
     #[test]
     fn password_too_short_is_rejected() {
-        let password = Secret::new(String::from("1234567")); // 7 characters
+        let password = SecretString::from(String::from("1234567")); // 7 characters
         assert_err!(SubscriberPassword::parse(password));
     }
 
     #[test]
     fn password_too_long_is_rejected() {
-        let password = Secret::new("123456".repeat(25)); // 150 characters
+        let password = SecretString::from("123456".repeat(25)); // 150 characters
         assert_err!(SubscriberPassword::parse(password));
     }
 
     #[test]
     fn password_with_non_ascii_is_rejected() {
-        let password = Secret::new(String::from("password123ё"));
+        let password = SecretString::from(String::from("password123ё"));
         assert_err!(SubscriberPassword::parse(password));
     }
 }

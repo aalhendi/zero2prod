@@ -29,8 +29,8 @@ impl AsRef<str> for SubscriptionToken {
 impl Default for SubscriptionToken {
     /// Generate a random subscription token of length SUBSCRIPTION_TOKEN_LENGTH, case-sensitive.
     fn default() -> Self {
-        let mut rng = rand::thread_rng();
-        let token_string = std::iter::repeat_with(|| rng.sample(rand::distributions::Alphanumeric))
+        let mut rng = rand::rng();
+        let token_string = std::iter::repeat_with(|| rng.sample(rand::distr::Alphanumeric))
             .map(char::from)
             .take(SUBSCRIPTION_TOKEN_LENGTH)
             .collect();

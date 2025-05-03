@@ -1,6 +1,9 @@
 use std::sync::OnceLock;
 
-use argon2::{password_hash::SaltString, Argon2, PasswordHasher};
+use argon2::{
+    password_hash::{rand_core::OsRng, SaltString},
+    Argon2, PasswordHasher,
+};
 use secrecy::{ExposeSecret, SecretString};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
@@ -37,7 +40,7 @@ impl TestUser {
         }
     }
     async fn store(&self, pool: &PgPool, pepper: SecretString) {
-        let salt = SaltString::generate(&mut rand::thread_rng());
+        let salt = SaltString::generate(&mut OsRng);
         let mut peppered_password = self.password.as_bytes().to_vec();
         peppered_password.extend_from_slice(pepper.expose_secret().as_bytes());
 

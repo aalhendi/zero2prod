@@ -37,29 +37,31 @@ actix-web = "4"
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }
 tracing-bunyan-formatter = "0.3"
-tracing-log = "0.1"
+tracing-log = "0.2"
 tracing-actix-web = "0.7"
-tracing-opentelemetry = { version = "0.28", optional = true }
-opentelemetry = { version = "0.27", optional = true }
-opentelemetry_sdk = { version = "0.27", features = [
+tracing-opentelemetry = { version = "0.30", optional = true }
+opentelemetry = { version = "0.29", optional = true }
+opentelemetry_sdk = { version = "0.29", features = [
     "rt-tokio",
 ], optional = true }
-opentelemetry-appender-tracing = { version = "0.27", optional = true }
-opentelemetry-otlp = { version = "0.27.0", features = [
+opentelemetry-appender-tracing = { version = "0.29", optional = true }
+opentelemetry-otlp = { version = "0.29", features = [
     "trace",
     "http-proto",
     "reqwest-client",
 ], optional = true }
-opentelemetry-semantic-conventions = { version = "0.27.0", features = ["semconv_experimental"], optional = true }
+opentelemetry-semantic-conventions = { version = "0.29", features = [
+    "semconv_experimental",
+], optional = true }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 serde = "1.0"
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
-secrecy = { version = "0.8", features = ["serde"] }
+secrecy = { version = "0.10", features = ["serde"] }
 unicode-segmentation = "1.12.0"
-validator = "0.19"
-rand = { version = "0.8", features = ["std_rng"] }
-thiserror = "1"
+validator = "0.20"
+rand = { version = "0.9", features = ["std_rng"] }
+thiserror = "2"
 anyhow = "1"
 argon2 = { version = "0.5.3", features = ["std"] }
 actix-web-flash-messages = { version = "0.5", features = ["cookies"] }
@@ -84,7 +86,7 @@ const-hex = "1.14.0"
 # used exclusively for testing, not compiled in release binary
 [dev-dependencies]
 claims = "0.8"
-fake = "3"
+fake = "4"
 proptest = "1"
 wiremock = "0.6.2"
 linkify = "0.10.0"

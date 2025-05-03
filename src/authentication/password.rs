@@ -4,10 +4,10 @@ use super::middleware::UserId;
 use crate::{domain::SubscriberPassword, telemetry::spawn_blocking_with_tracing};
 use anyhow::Context;
 use argon2::{
-    password_hash::SaltString, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
-    PasswordVerifier, Version,
+    password_hash::{rand_core::OsRng, SaltString},
+    Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version,
 };
-use secrecy::{ExposeSecret, Secret, SecretString};
+use secrecy::{ExposeSecret, SecretString};
 use sqlx::PgPool;
 
 #[derive(thiserror::Error, Debug)]
@@ -20,7 +20,7 @@ pub enum AuthError {
 
 pub struct Credentials {
     pub username: String,
-    pub password: Secret<String>,
+    pub password: SecretString,
 }
 
 pub struct PasswordService {
@@ -43,7 +43,7 @@ impl PasswordService {
         let mut user_id = None;
         // Establish fallback password (with salt and load parameters)
         // to perform same amount of work whether user exists or doesn't
-        let mut expected_password_hash = Secret::new(
+        let mut expected_password_hash = SecretString::from(
             "$argon2id$v=19$m=15000,t=2,p=1$\
         gZiV/M1gPc22ElAH/Jh1Hw$\
         CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno"
@@ -84,8 +84,8 @@ impl PasswordService {
         skip(expected_password_hash, password_candidate, pepper)
     )]
     fn verify_password_hash(
-        expected_password_hash: Secret<String>,
-        password_candidate: Secret<String>,
+        expected_password_hash: SecretString,
+        password_candidate: SecretString,
         pepper: Arc<SecretString>,
     ) -> Result<(), AuthError> {
         let expected_password_hash = PasswordHash::new(expected_password_hash.expose_secret())
@@ -105,7 +105,7 @@ impl PasswordService {
         &self,
         username: &str,
         pool: &PgPool,
-    ) -> Result<Option<(uuid::Uuid, Secret<String>)>, anyhow::Error> {
+    ) -> Result<Option<(uuid::Uuid, SecretString)>, anyhow::Error> {
         let row = sqlx::query!(
             r#"
         SELECT user_id, password_hash
@@ -117,7 +117,7 @@ impl PasswordService {
         .fetch_optional(pool)
         .await
         .context("Failed to perform a query to retrieve stored credentials.")?
-        .map(|row| (row.user_id, Secret::new(row.password_hash)));
+        .map(|row| (row.user_id, SecretString::from(row.password_hash)));
 
         Ok(row)
     }
@@ -153,8 +153,8 @@ WHERE user_id = $2
     fn compute_password_hash(
         password: SubscriberPassword,
         pepper: Arc<SecretString>,
-    ) -> Result<Secret<String>, anyhow::Error> {
-        let salt = SaltString::generate(&mut rand::thread_rng());
+    ) -> Result<SecretString, anyhow::Error> {
+        let salt = SaltString::generate(&mut OsRng);
         let mut peppered_password = password.expose().as_bytes().to_vec();
         peppered_password.extend_from_slice(pepper.expose_secret().as_bytes());
 
@@ -165,6 +165,6 @@ WHERE user_id = $2
         )
         .hash_password(&peppered_password, &salt)?
         .to_string();
-        Ok(Secret::new(password_hash))
+        Ok(SecretString::from(password_hash))
     }
 }

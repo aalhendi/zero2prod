@@ -12,10 +12,10 @@ use {
     opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge,
     opentelemetry_otlp::{WithExportConfig, WithHttpConfig},
     opentelemetry_sdk::{
-        logs::LoggerProvider, metrics::SdkMeterProvider, runtime, trace::TracerProvider, Resource,
+        logs::SdkLoggerProvider, metrics::SdkMeterProvider, trace::SdkTracerProvider, Resource,
     },
     opentelemetry_semantic_conventions::{
-        resource::{DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_NAME, SERVICE_VERSION},
+        resource::{DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_VERSION},
         SCHEMA_URL,
     },
     tracing_opentelemetry::OpenTelemetryLayer,
@@ -24,8 +24,8 @@ use {
 #[cfg(feature = "open-telemetry")]
 pub struct OtelGuard {
     meter_provider: SdkMeterProvider,
-    logger_provider: LoggerProvider,
-    tracer_provider: TracerProvider,
+    logger_provider: SdkLoggerProvider,
+    tracer_provider: SdkTracerProvider,
 }
 
 #[cfg(feature = "open-telemetry")]
@@ -119,18 +119,20 @@ where
 /// Creates a Resource that captures information about the entity for which telemetry is recorded.
 fn resource() -> Resource {
     let environment = std::env::var("APP_ENVIRONMENT").unwrap_or_else(|_| String::from("local"));
-    Resource::from_schema_url(
-        [
-            KeyValue::new(SERVICE_NAME, env!("CARGO_PKG_NAME")),
-            KeyValue::new(SERVICE_VERSION, env!("CARGO_PKG_VERSION")),
-            KeyValue::new(DEPLOYMENT_ENVIRONMENT_NAME, environment),
-        ],
-        SCHEMA_URL,
-    )
+    Resource::builder()
+        .with_service_name(env!("CARGO_PKG_NAME"))
+        .with_schema_url(
+            vec![
+                KeyValue::new(SERVICE_VERSION, env!("CARGO_PKG_VERSION")),
+                KeyValue::new(DEPLOYMENT_ENVIRONMENT_NAME, environment),
+            ],
+            SCHEMA_URL,
+        )
+        .build()
 }
 
 #[cfg(feature = "open-telemetry")]
-fn init_tracer(settings: &OpenTelemetrySettings) -> TracerProvider {
+fn init_tracer(settings: &OpenTelemetrySettings) -> SdkTracerProvider {
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_http()
         .with_endpoint(settings.trace_full_url())
@@ -139,14 +141,14 @@ fn init_tracer(settings: &OpenTelemetrySettings) -> TracerProvider {
         .build()
         .unwrap();
 
-    TracerProvider::builder()
-        .with_batch_exporter(exporter, runtime::Tokio)
+    SdkTracerProvider::builder()
+        .with_batch_exporter(exporter)
         .with_resource(resource())
         .build()
 }
 
 #[cfg(feature = "open-telemetry")]
-fn init_logger(settings: &OpenTelemetrySettings) -> LoggerProvider {
+fn init_logger(settings: &OpenTelemetrySettings) -> SdkLoggerProvider {
     let exporter = opentelemetry_otlp::LogExporter::builder()
         .with_http()
         .with_endpoint(settings.log_full_url())
@@ -155,8 +157,8 @@ fn init_logger(settings: &OpenTelemetrySettings) -> LoggerProvider {
         .build()
         .unwrap();
 
-    LoggerProvider::builder()
+    SdkLoggerProvider::builder()
         .with_resource(resource())
-        .with_batch_exporter(exporter, runtime::Tokio)
+        .with_batch_exporter(exporter)
         .build()
 }

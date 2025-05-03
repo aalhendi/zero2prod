@@ -31,10 +31,10 @@ impl AsRef<str> for PasswordResetToken {
 impl Default for PasswordResetToken {
     /// Generate a random subscription token of length SUBSCRIPTION_TOKEN_LENGTH, case-sensitive.
     fn default() -> Self {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let length =
-            rng.gen_range(PASSWORD_RESET_TOKEN_MIN_LENGTH..=PASSWORD_RESET_TOKEN_MAX_LENGTH);
-        let token_string = std::iter::repeat_with(|| rng.sample(rand::distributions::Alphanumeric))
+            rng.random_range(PASSWORD_RESET_TOKEN_MIN_LENGTH..=PASSWORD_RESET_TOKEN_MAX_LENGTH);
+        let token_string = std::iter::repeat_with(|| rng.sample(rand::distr::Alphanumeric))
             .map(char::from)
             .take(length)
             .collect();
@@ -72,8 +72,8 @@ mod tests {
 
     #[test]
     fn correct_length_is_accepted() {
-        let mut rng = rand::thread_rng();
-        let length = rand::Rng::gen_range(
+        let mut rng = rand::rng();
+        let length = rand::Rng::random_range(
             &mut rng,
             PASSWORD_RESET_TOKEN_MIN_LENGTH..=PASSWORD_RESET_TOKEN_MAX_LENGTH,
         );

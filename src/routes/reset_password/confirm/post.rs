@@ -8,14 +8,14 @@ use crate::{
 use actix_web::{http::StatusCode, web, HttpResponse};
 use actix_web_flash_messages::FlashMessage;
 use anyhow::Context;
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretString};
 use sqlx::PgPool;
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
-    token: Secret<String>,
-    new_password: Secret<String>,
-    new_password_check: Secret<String>,
+    token: SecretString,
+    new_password: SecretString,
+    new_password_check: SecretString,
 }
 
 pub async fn reset_password_confirm(

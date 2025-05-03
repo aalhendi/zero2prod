@@ -3,7 +3,7 @@ use std::net::TcpListener;
 use actix_session::{storage::RedisSessionStore, SessionMiddleware};
 use actix_web::{cookie::Key, dev::Server, middleware::from_fn, web, App, HttpServer};
 use actix_web_flash_messages::{storage::CookieMessageStore, FlashMessagesFramework};
-use secrecy::{ExposeSecret, Secret, SecretString};
+use secrecy::{ExposeSecret, SecretString};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing_actix_web::TracingLogger;
 
@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct HmacSecret(Secret<String>);
+pub struct HmacSecret(SecretString);
 
 impl HmacSecret {
     pub fn expose(&self) -> &str {
@@ -81,7 +81,7 @@ async fn run(
     email_client: EmailClient,
     base_url: String,
     hmac_secret: HmacSecret,
-    redis_uri: Secret<String>,
+    redis_uri: SecretString,
     pepper: SecretString,
 ) -> Result<Server, anyhow::Error> {
     // Wrap the connection in a smart pointer (Arc)

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use figment::providers::{Env, Format, Yaml};
 use figment::Figment;
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretString};
 use serde_aux::field_attributes::deserialize_number_from_string;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use sqlx::ConnectOptions;
@@ -16,21 +16,21 @@ pub struct Settings {
     pub application: ApplicationSettings,
     pub email_client: EmailClientSettings,
     // URI marked as secret because it may embed a password
-    pub redis_uri: Secret<String>,
+    pub redis_uri: SecretString,
     pub otel: OpenTelemetrySettings,
     pub auth: AuthSettings,
 }
 
 #[derive(serde::Deserialize, Clone)]
 pub struct AuthSettings {
-    pub pepper: Secret<String>,
+    pub pepper: SecretString,
 }
 
 #[derive(serde::Deserialize, Clone)]
 pub struct EmailClientSettings {
     pub base_url: String,
     pub sender_email: String,
-    pub authorization_token: Secret<String>,
+    pub authorization_token: SecretString,
     timeout_milliseconds: u64,
 }
 
@@ -58,13 +58,13 @@ pub struct ApplicationSettings {
     pub port: u16,
     pub host: String,
     pub base_url: String,
-    pub hmac_secret: Secret<String>,
+    pub hmac_secret: SecretString,
 }
 
 #[derive(serde::Deserialize, Clone)]
 pub struct DatabaseSettings {
     pub username: String,
-    pub password: Secret<String>,
+    pub password: SecretString,
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
@@ -103,7 +103,7 @@ pub struct OpenTelemetrySettings {
     base_url: String,
     trace_endpoint: String,
     log_endpoint: String,
-    pub auth_token: Secret<String>,
+    pub auth_token: SecretString,
 }
 
 impl OpenTelemetrySettings {
