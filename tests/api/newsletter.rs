@@ -1,15 +1,15 @@
 use std::time::Duration;
 
 use fake::{
-    faker::{internet::en::SafeEmail, name::en::Name},
     Fake,
+    faker::{internet::en::SafeEmail, name::en::Name},
 };
 use wiremock::{
-    matchers::{any, method, path},
     Mock, MockBuilder, ResponseTemplate,
+    matchers::{any, method, path},
 };
 
-use crate::helpers::{assert_is_redirect_to, spawn_app, ConfirmationLinks, TestApp};
+use crate::helpers::{ConfirmationLinks, TestApp, assert_is_redirect_to, spawn_app};
 
 /// Short-hand for "/email" and method POST
 fn when_sending_an_email() -> MockBuilder {

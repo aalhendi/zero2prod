@@ -1,10 +1,10 @@
 use std::net::TcpListener;
 
-use actix_session::{storage::RedisSessionStore, SessionMiddleware};
-use actix_web::{cookie::Key, dev::Server, middleware::from_fn, web, App, HttpServer};
-use actix_web_flash_messages::{storage::CookieMessageStore, FlashMessagesFramework};
+use actix_session::{SessionMiddleware, storage::RedisSessionStore};
+use actix_web::{App, HttpServer, cookie::Key, dev::Server, middleware::from_fn, web};
+use actix_web_flash_messages::{FlashMessagesFramework, storage::CookieMessageStore};
 use secrecy::{ExposeSecret, SecretString};
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use tracing_actix_web::TracingLogger;
 
 use crate::{

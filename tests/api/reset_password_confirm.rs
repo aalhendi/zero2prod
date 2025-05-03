@@ -1,8 +1,8 @@
 use crate::helpers::{assert_is_redirect_to, extract_token, spawn_app};
 use uuid::Uuid;
 use wiremock::{
-    matchers::{method, path},
     Mock, ResponseTemplate,
+    matchers::{method, path},
 };
 use zero2prod::domain::PasswordResetToken;
 
@@ -97,11 +97,13 @@ async fn reset_password_confirm_returns_400_for_invalid_token() {
 
     // Assert
     assert_eq!(400, response.status().as_u16());
-    assert!(response
-        .text()
-        .await
-        .unwrap()
-        .contains("Invalid or expired password reset token."));
+    assert!(
+        response
+            .text()
+            .await
+            .unwrap()
+            .contains("Invalid or expired password reset token.")
+    );
 }
 
 #[tokio::test]
@@ -142,11 +144,13 @@ async fn reset_password_confirm_returns_400_for_expired_token() {
 
     // Assert
     assert_eq!(400, response.status().as_u16());
-    assert!(response
-        .text()
-        .await
-        .unwrap()
-        .contains("Invalid or expired password reset token."));
+    assert!(
+        response
+            .text()
+            .await
+            .unwrap()
+            .contains("Invalid or expired password reset token.")
+    );
 }
 
 #[tokio::test]
@@ -239,11 +243,13 @@ async fn reset_password_confirm_returns_400_for_duplicate_token_attempt() {
 
     // Assert
     assert_eq!(400, response.status().as_u16());
-    assert!(response
-        .text()
-        .await
-        .unwrap()
-        .contains("Invalid or expired password reset token."));
+    assert!(
+        response
+            .text()
+            .await
+            .unwrap()
+            .contains("Invalid or expired password reset token.")
+    );
 }
 
 #[tokio::test]
@@ -327,8 +333,10 @@ async fn reset_password_confirm_returns_error_for_password_mismatch() {
     // Check flash message
     let response = app.get_password_reset_confirm(&token).await;
     let html_page = response.text().await.unwrap();
-    assert!(html_page
-        .contains("You entered two different new passwords - the field values must match."));
+    assert!(
+        html_page
+            .contains("You entered two different new passwords - the field values must match.")
+    );
 }
 
 #[tokio::test]

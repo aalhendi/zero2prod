@@ -43,10 +43,10 @@ mod tests {
     use claims::{assert_err, assert_ok};
     use proptest::{prelude::any, prop_assert, prop_compose, proptest};
     use rand::{
+        Rng, SeedableRng,
         prelude::Distribution,
         rngs::StdRng,
         seq::{IndexedRandom, SliceRandom},
-        Rng, SeedableRng,
     };
     use secrecy::SecretString;
 

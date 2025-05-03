@@ -30,9 +30,9 @@ impl AsRef<str> for SubscriberEmail {
 mod tests {
     use super::SubscriberEmail;
     use claims::assert_err;
-    use fake::{faker::internet::en::SafeEmail, Fake};
+    use fake::{Fake, faker::internet::en::SafeEmail};
     use proptest::{prelude::any, prop_assert, prop_compose, proptest};
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{SeedableRng, rngs::StdRng};
 
     prop_compose! {
         fn valid_email_strategy()

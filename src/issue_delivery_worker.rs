@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use sqlx::{Executor, PgPool, Postgres, Transaction};
-use tracing::{field::display, Span};
+use tracing::{Span, field::display};
 use uuid::Uuid;
 
 use crate::{

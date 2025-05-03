@@ -3,7 +3,7 @@ use crate::{
     routes::subscriptions::error_chain_fmt,
     session_state::TypedSession,
 };
-use actix_web::{error::InternalError, http::header::LOCATION, web, HttpResponse};
+use actix_web::{HttpResponse, error::InternalError, http::header::LOCATION, web};
 use actix_web_flash_messages::FlashMessage;
 use secrecy::SecretString;
 use sqlx::PgPool;

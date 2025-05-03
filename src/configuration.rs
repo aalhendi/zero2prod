@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use figment::providers::{Env, Format, Yaml};
 use figment::Figment;
+use figment::providers::{Env, Format, Yaml};
 use secrecy::{ExposeSecret, SecretString};
 use serde_aux::field_attributes::deserialize_number_from_string;
-use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use sqlx::ConnectOptions;
+use sqlx::postgres::{PgConnectOptions, PgSslMode};
 
 use crate::domain::SubscriberEmail;
 use crate::email_client::EmailClient;

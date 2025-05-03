@@ -6,7 +6,7 @@ use crate::{
     startup::ApplicationBaseUrl,
     utils::see_other,
 };
-use actix_web::{error::InternalError, web, HttpResponse};
+use actix_web::{HttpResponse, error::InternalError, web};
 use actix_web_flash_messages::FlashMessage;
 use anyhow::anyhow;
 use sqlx::PgPool;
@@ -33,7 +33,7 @@ pub async fn reset_password(
             return Err(InternalError::from_response(
                 ForgotPasswordError::InvalidEmailError(anyhow!(e)),
                 HttpResponse::BadRequest().finish(),
-            ))
+            ));
         }
     };
 
@@ -55,7 +55,7 @@ pub async fn reset_password(
             return Err(InternalError::from_response(
                 ForgotPasswordError::UnexpectedError(anyhow!(e)),
                 HttpResponse::InternalServerError().finish(),
-            ))
+            ));
         }
     };
 

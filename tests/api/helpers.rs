@@ -1,18 +1,18 @@
 use std::sync::OnceLock;
 
 use argon2::{
-    password_hash::{rand_core::OsRng, SaltString},
     Argon2, PasswordHasher,
+    password_hash::{SaltString, rand_core::OsRng},
 };
 use secrecy::{ExposeSecret, SecretString};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use zero2prod::{
-    configuration::{get_configuration, DatabaseSettings},
+    configuration::{DatabaseSettings, get_configuration},
     domain::PasswordResetToken,
     email_client::EmailClient,
-    issue_delivery_worker::{try_execute_task, ExecutionOutcome},
-    startup::{get_connection_pool, Application},
+    issue_delivery_worker::{ExecutionOutcome, try_execute_task},
+    startup::{Application, get_connection_pool},
     telemetry::{get_subscriber, init_subscriber},
 };
 

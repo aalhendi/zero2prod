@@ -1,5 +1,5 @@
 use crate::{authentication::middleware::UserId, idempotency::key::IdempotencyKey};
-use actix_web::{http::StatusCode, HttpResponse};
+use actix_web::{HttpResponse, http::StatusCode};
 use sqlx::{Executor, PgPool, Postgres, Transaction};
 
 #[derive(Debug, sqlx::Type)]

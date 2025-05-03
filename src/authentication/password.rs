@@ -4,8 +4,8 @@ use super::middleware::UserId;
 use crate::{domain::SubscriberPassword, telemetry::spawn_blocking_with_tracing};
 use anyhow::Context;
 use argon2::{
-    password_hash::{rand_core::OsRng, SaltString},
     Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version,
+    password_hash::{SaltString, rand_core::OsRng},
 };
 use secrecy::{ExposeSecret, SecretString};
 use sqlx::PgPool;

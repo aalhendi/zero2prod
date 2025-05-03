@@ -5,7 +5,7 @@ use crate::{
     routes::subscriptions::error_chain_fmt,
     utils::see_other,
 };
-use actix_web::{http::StatusCode, web, HttpResponse};
+use actix_web::{HttpResponse, http::StatusCode, web};
 use actix_web_flash_messages::FlashMessage;
 use anyhow::Context;
 use secrecy::{ExposeSecret, SecretString};

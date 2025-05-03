@@ -1,8 +1,8 @@
 use crate::helpers::{assert_is_redirect_to, spawn_app};
 use sqlx::query;
 use wiremock::{
-    matchers::{method, path},
     Mock, ResponseTemplate,
+    matchers::{method, path},
 };
 
 #[tokio::test]

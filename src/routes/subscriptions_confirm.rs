@@ -1,5 +1,5 @@
 use actix_web::http::StatusCode;
-use actix_web::{web, HttpResponse};
+use actix_web::{HttpResponse, web};
 use anyhow::Context;
 use sqlx::PgPool;
 use uuid::Uuid;

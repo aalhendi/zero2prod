@@ -7,7 +7,7 @@ use crate::{
     repository::user_repository::UserRepository,
     utils::{e500, see_other},
 };
-use actix_web::{web, HttpResponse};
+use actix_web::{HttpResponse, web};
 use actix_web_flash_messages::FlashMessage;
 use secrecy::{ExposeSecret, SecretString};
 use sqlx::PgPool;

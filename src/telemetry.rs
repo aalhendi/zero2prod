@@ -1,22 +1,22 @@
 use tokio::task::JoinHandle;
-use tracing::{subscriber::set_global_default, Subscriber};
+use tracing::{Subscriber, subscriber::set_global_default};
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_log::LogTracer;
 use tracing_subscriber::{
-    fmt::MakeWriter, layer::SubscriberExt, registry::LookupSpan, EnvFilter, Registry,
+    EnvFilter, Registry, fmt::MakeWriter, layer::SubscriberExt, registry::LookupSpan,
 };
 #[cfg(feature = "open-telemetry")]
 use {
     crate::configuration::OpenTelemetrySettings,
-    opentelemetry::{trace::TracerProvider as _, KeyValue},
+    opentelemetry::{KeyValue, trace::TracerProvider as _},
     opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge,
     opentelemetry_otlp::{WithExportConfig, WithHttpConfig},
     opentelemetry_sdk::{
-        logs::SdkLoggerProvider, metrics::SdkMeterProvider, trace::SdkTracerProvider, Resource,
+        Resource, logs::SdkLoggerProvider, metrics::SdkMeterProvider, trace::SdkTracerProvider,
     },
     opentelemetry_semantic_conventions::{
-        resource::{DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_VERSION},
         SCHEMA_URL,
+        resource::{DEPLOYMENT_ENVIRONMENT_NAME, SERVICE_VERSION},
     },
     tracing_opentelemetry::OpenTelemetryLayer,
 };

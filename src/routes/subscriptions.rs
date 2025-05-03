@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, web, HttpResponse};
+use actix_web::{HttpResponse, http::StatusCode, web};
 use anyhow::Context;
 use chrono::Utc;
 use sqlx::{Executor, PgPool, Postgres, Transaction};

@@ -1,7 +1,7 @@
 use crate::{
     authentication::middleware::UserId, repository::user_repository::UserRepository, utils::e500,
 };
-use actix_web::{http::header::ContentType, web, HttpResponse};
+use actix_web::{HttpResponse, http::header::ContentType, web};
 use sqlx::PgPool;
 
 pub async fn admin_dashboard(
