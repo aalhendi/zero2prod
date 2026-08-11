@@ -59,35 +59,39 @@ uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 secrecy = { version = "0.10", features = ["serde"] }
 unicode-segmentation = "1.12.0"
-validator = "0.20"
-rand = { version = "0.9", features = ["std_rng"] }
+validator = "0.21"
+rand = { version = "0.10", features = ["std_rng"] }
 thiserror = "2"
 anyhow = "1"
 argon2 = { version = "0.5.3", features = ["std"] }
 actix-web-flash-messages = { version = "0.5", features = ["cookies"] }
-actix-session = { version = "0.10.1", features = ["redis-session-rustls"] }
+actix-session = { version = "0.11", features = ["redis-session-rustls"] }
 serde_json = "1.0"
-sqlx = { version = "0.8.3", default-features = false, features = [
-    "runtime-tokio-rustls",
+sqlx = { version = "0.9", default-features = false, features = [
+    "runtime-tokio",
+    "tls-rustls-ring-webpki",
     "macros",
     "postgres",
     "uuid",
     "chrono",
     "migrate",
 ] }
-reqwest = { version = "0.12", default-features = false, features = [
+reqwest = { version = "0.13", default-features = false, features = [
     "json",
-    "rustls-tls",
+    "rustls-no-provider",
     "cookies",
+    "form",
 ] }
-sha2 = "0.10.8"
+# Preserve the existing Ring provider instead of adopting Reqwest 0.13's new AWS-LC default.
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+sha2 = "0.11"
 const-hex = "1.14.0"
 
 # used exclusively for testing, not compiled in release binary
 [dev-dependencies]
 claims = "0.8"
-fake = "4"
+fake = "5"
 proptest = "1"
 wiremock = "0.6.2"
-linkify = "0.10.0"
+linkify = "0.11"
 serde_urlencoded = "0.7.1"

@@ -43,14 +43,14 @@ mod tests {
     use claims::{assert_err, assert_ok};
     use proptest::{prelude::any, prop_assert, prop_compose, proptest};
     use rand::{
-        Rng, SeedableRng,
+        RngExt, SeedableRng,
         prelude::Distribution,
         rngs::StdRng,
         seq::{IndexedRandom, SliceRandom},
     };
     use secrecy::SecretString;
 
-    fn generate_valid_password(rng: &mut impl Rng) -> String {
+    fn generate_valid_password(rng: &mut impl RngExt) -> String {
         let lowercase_chars: Vec<char> = ('a'..='z').collect();
         let uppercase_chars: Vec<char> = ('A'..='Z').collect();
         let digit_chars: Vec<char> = ('0'..='9').collect();

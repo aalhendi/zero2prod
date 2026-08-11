@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::RngExt;
 
 const PASSWORD_RESET_TOKEN_MIN_LENGTH: usize = 16;
 const PASSWORD_RESET_TOKEN_MAX_LENGTH: usize = 32;
@@ -73,7 +73,7 @@ mod tests {
     #[test]
     fn correct_length_is_accepted() {
         let mut rng = rand::rng();
-        let length = rand::Rng::random_range(
+        let length = rand::RngExt::random_range(
             &mut rng,
             PASSWORD_RESET_TOKEN_MIN_LENGTH..=PASSWORD_RESET_TOKEN_MAX_LENGTH,
         );

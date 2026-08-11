@@ -6,12 +6,24 @@
       {
         "ordinal": 0,
         "name": "newsletter_issue_id",
-        "type_info": "Uuid"
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "issue_delivery_queue",
+            "name": "newsletter_issue_id"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "subscriber_email",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "issue_delivery_queue",
+            "name": "subscriber_email"
+          }
+        }
       }
     ],
     "parameters": {

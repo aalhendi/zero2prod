@@ -4,7 +4,8 @@ on: [push, pull_request]
 
 env:
   CARGO_TERM_COLOR: always
-  SQLX_VERSION: 0.8.3
+  # TODO(aalhendi): Use a project-owned lockfile for reproducible sqlx-cli installations.
+  SQLX_VERSION: 0.9.0
   SQLX_FEATURES: "rustls,postgres"
 
 jobs:
@@ -58,15 +59,11 @@ jobs:
           --version=${{ env.SQLX_VERSION }}
           --features ${{ env.SQLX_FEATURES }}
           --no-default-features
-          --locked
-          # The --locked flag can be used to force Cargo to use the packaged Cargo.lock file if it is available.
-          # This may be useful for ensuring reproducible builds, to use the exact same set of dependencies that were available when the package was published.
-          # It may also be useful if a newer version of a dependency is published that no longer builds on your system, or has other problems
 
       - name: Migrate database
         run: cargo sqlx migrate run
 
-      - name: Check sqlx-data.json is up-to-date
+      - name: Check SQLx offline metadata is up-to-date
         run: |
           cargo sqlx prepare --workspace --check -- --all-targets
 
@@ -138,7 +135,6 @@ jobs:
           --version=${{ env.SQLX_VERSION }}
           --features ${{ env.SQLX_FEATURES }}
           --no-default-features
-          --locked
       - name: Migrate database
         run: cargo sqlx migrate run
       - name: Install cargo-llvm-cov

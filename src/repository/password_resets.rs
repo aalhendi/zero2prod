@@ -7,6 +7,10 @@ pub struct PasswordResetRepository<'a> {
     pool: &'a PgPool,
 }
 
+fn hash_token(token: &PasswordResetToken) -> String {
+    const_hex::encode(Sha256::digest(token.as_ref()))
+}
+
 impl<'a> PasswordResetRepository<'a> {
     pub fn new(pool: &'a PgPool) -> Self {
         Self { pool }
@@ -18,7 +22,7 @@ impl<'a> PasswordResetRepository<'a> {
         user_id: Uuid,
         reset_token: &PasswordResetToken,
     ) -> Result<(), sqlx::Error> {
-        let token_hash = const_hex::encode(Sha256::digest(reset_token.as_ref()));
+        let token_hash = hash_token(reset_token);
         sqlx::query!(
             r#"
             INSERT INTO password_resets (user_id, token_hash, created_at, expires_at)
@@ -37,7 +41,7 @@ impl<'a> PasswordResetRepository<'a> {
         &self,
         token: &PasswordResetToken,
     ) -> Result<Option<(Uuid, String)>, sqlx::Error> {
-        let token_hash = const_hex::encode(Sha256::digest(token.as_ref()));
+        let token_hash = hash_token(token);
         sqlx::query!(
             r#"SELECT user_id, token_hash FROM password_resets 
                WHERE token_hash = $1 
@@ -61,5 +65,24 @@ impl<'a> PasswordResetRepository<'a> {
         .execute(self.pool)
         .await?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::hash_token;
+    use crate::domain::PasswordResetToken;
+
+    #[test]
+    // NOTE(aalhendi): This pins the persisted token-hash format across deployments.
+    // Changing it invalidates unexpired password-reset links issued by the previous version;
+    // see `PasswordResetRepository::insert_reset_token` for the token TTL.
+    fn password_reset_token_hash_is_stable() {
+        let token = PasswordResetToken::parse("a".repeat(16)).unwrap();
+
+        assert_eq!(
+            hash_token(&token),
+            "0c0beacef8877bbf2416eb00f2b5dc96354e26dd1df5517320459b1236860f8c"
+        );
     }
 }

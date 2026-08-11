@@ -5,7 +5,7 @@ use argon2::{
     password_hash::{SaltString, rand_core::OsRng},
 };
 use secrecy::{ExposeSecret, SecretString};
-use sqlx::{Connection, Executor, PgConnection, PgPool};
+use sqlx::{AssertSqlSafe, Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use zero2prod::{
     configuration::{DatabaseSettings, get_configuration},
@@ -88,7 +88,7 @@ pub struct TestApp {
 impl TestApp {
     pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
         self.api_client
-            .post(format!("{address}/subscriptions", address = &self.address))
+            .post(format!("{address}/subscriptions", address = self.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(body)
             .send()
@@ -100,7 +100,7 @@ impl TestApp {
         self.api_client
             .post(format!(
                 "{address}/admin/newsletters",
-                address = &self.address
+                address = self.address
             ))
             .form(&body)
             .send()
@@ -112,7 +112,7 @@ impl TestApp {
         self.api_client
             .get(format!(
                 "{address}/admin/newsletters",
-                address = &self.address
+                address = self.address
             ))
             .send()
             .await
@@ -154,7 +154,7 @@ impl TestApp {
         Body: serde::Serialize,
     {
         self.api_client
-            .post(format!("{address}/login", address = &self.address))
+            .post(format!("{address}/login", address = self.address))
             // `reqwest` method ensures body is URL-encoded && `Content-Type` header is set accordingly.
             .form(body)
             .send()
@@ -165,7 +165,7 @@ impl TestApp {
     /// Since tests will only look at HTML page, don't expose the underlying reqwest::Response
     pub async fn get_login_html(&self) -> String {
         self.api_client
-            .get(format!("{address}/login", address = &self.address))
+            .get(format!("{address}/login", address = self.address))
             .send()
             .await
             .expect("Failed to execute request.")
@@ -176,10 +176,7 @@ impl TestApp {
 
     pub async fn get_admin_dashboard(&self) -> reqwest::Response {
         self.api_client
-            .get(format!(
-                "{address}/admin/dashboard",
-                address = &self.address
-            ))
+            .get(format!("{address}/admin/dashboard", address = self.address))
             .send()
             .await
             .expect("Failed to execute request.")
@@ -191,7 +188,7 @@ impl TestApp {
 
     pub async fn get_change_password(&self) -> reqwest::Response {
         self.api_client
-            .get(format!("{address}/admin/password", address = &self.address))
+            .get(format!("{address}/admin/password", address = self.address))
             .send()
             .await
             .expect("Failed to execute request.")
@@ -208,7 +205,7 @@ impl TestApp {
         self.api_client
             .get(format!(
                 "{address}/password-reset/confirm?token={token}",
-                address = &self.address,
+                address = self.address,
                 token = token.as_ref()
             ))
             .send()
@@ -221,7 +218,7 @@ impl TestApp {
         Body: serde::Serialize,
     {
         self.api_client
-            .post(format!("{address}/admin/password", address = &self.address))
+            .post(format!("{address}/admin/password", address = self.address))
             .form(body)
             .send()
             .await
@@ -230,7 +227,7 @@ impl TestApp {
 
     pub async fn post_logout(&self) -> reqwest::Response {
         self.api_client
-            .post(format!("{address}/admin/logout", address = &self.address))
+            .post(format!("{address}/admin/logout", address = self.address))
             .send()
             .await
             .expect("Failed to execute request.")
@@ -241,7 +238,7 @@ impl TestApp {
         Body: serde::Serialize,
     {
         self.api_client
-            .post(format!("{address}/password-reset", address = &self.address))
+            .post(format!("{address}/password-reset", address = self.address))
             // `reqwest` method ensures body is URL-encoded && `Content-Type` header is set accordingly.
             .form(body)
             .send()
@@ -256,7 +253,7 @@ impl TestApp {
         self.api_client
             .post(format!(
                 "{address}/password-reset/confirm",
-                address = &self.address
+                address = self.address
             ))
             // `reqwest` method ensures body is URL-encoded && `Content-Type` header is set accordingly.
             .form(body)
@@ -362,14 +359,13 @@ async fn configure_database(config: &DatabaseSettings) -> PgPool {
         .await
         .expect("Failed to conenct to Postgres.");
 
+    // Database names are generated UUIDs, and identifiers cannot be bound as query parameters.
+    let create_database = format!(
+        r#"CREATE DATABASE "{db_name}";"#,
+        db_name = config.database_name
+    );
     connection
-        .execute(
-            format!(
-                r#"CREATE DATABASE "{db_name}";"#,
-                db_name = config.database_name
-            )
-            .as_str(),
-        )
+        .execute(AssertSqlSafe(create_database))
         .await
         .expect("Failed to create database.");
 

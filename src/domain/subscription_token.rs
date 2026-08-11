@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::RngExt;
 
 const SUBSCRIPTION_TOKEN_LENGTH: usize = 25;
 
