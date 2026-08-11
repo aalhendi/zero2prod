@@ -10,9 +10,9 @@ This guide covers the setup and development process for the newsletter email ser
 
    - Install via [rustup](https://www.rust-lang.org/tools/install)
 
-2. **PostgreSQL**
+2. **Docker with Docker Compose**
 
-   - Install [PostgreSQL](https://www.postgresql.org/)
+   - Install [Docker](https://docs.docker.com/get-docker/)
 
 3. **Mold Linker**
    - Install [mold](https://github.com/rui314/mold)
@@ -56,14 +56,20 @@ This preparation is checked in the CI pipeline.
 
 ## Development Workflow
 
-1. Start the required services:
+1. Start PostgreSQL and Redis and wait for them to become healthy:
 
    ```sh
-   ./scripts/init_db.sh
-   ./scripts/init_redis.sh
+   docker compose up --detach --wait
    ```
 
-2. Run the application with logging:
+2. Apply pending database migrations:
+
+   ```sh
+   sqlx migrate run
+   ```
+
+3. Run the application with logging:
+
    ```sh
    TEST_LOG=true RUST_LOG=debug cargo run | bunyan
    ```

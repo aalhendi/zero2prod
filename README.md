@@ -4,17 +4,26 @@ A Rust-based newsletter email service with PostgreSQL backend and OpenTelemetry 
 
 ## Quick Start
 
-1. Set up the development environment:
+1. Start PostgreSQL and Redis, then run the database migrations:
 
    ```sh
-   ./scripts/init_db.sh
-   ./scripts/init_redis.sh
+   docker compose up --detach --wait
+   sqlx migrate run
    ```
 
 2. Run the application:
+
    ```sh
    TEST_LOG=true RUST_LOG=debug cargo run | bunyan
    ```
+
+Stop the local services without deleting PostgreSQL data:
+
+```sh
+docker compose down
+```
+
+To discard the local database as well, run `docker compose down --volumes`.
 
 ## Features
 

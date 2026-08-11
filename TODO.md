@@ -9,7 +9,6 @@
 - password reset rate limiting
 - clean up routes... segment (?)
 - add password expiry
-- docker compose
 - refactor migrations into core and seed migrations (so admin user doesn't get seeded into prod env lol)
 - migrate to `bacon` from `cargo-watch`
 - document `cargo-nextest`
