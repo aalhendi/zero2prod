@@ -2,7 +2,7 @@ name: zero2prod
 
 services:
   postgres:
-    image: postgres:14
+    image: postgres:18.4-alpine
     command: ["postgres", "-N", "1000"]
     environment:
       POSTGRES_DB: newsletter
@@ -17,7 +17,7 @@ services:
       retries: 10
       start_period: 5s
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
 
   valkey:
     image: valkey/valkey:9.1.1-alpine
