@@ -133,7 +133,7 @@ impl OpenTelemetrySettings {
     }
 }
 
-pub fn get_configuration() -> Result<Settings, figment::Error> {
+pub fn get_configuration() -> Result<Settings, Box<figment::Error>> {
     let base_path = std::env::current_dir().expect("Failed to determine the current directory.");
     let configutation_directory = base_path.join("configuration");
 
@@ -152,7 +152,7 @@ pub fn get_configuration() -> Result<Settings, figment::Error> {
         // Allows overriding whatever is in configuration file
         .merge(Env::prefixed("APP_").split("__"));
 
-    settings.extract()
+    settings.extract().map_err(Box::new)
 }
 
 /// The possible runtime environment for our application.

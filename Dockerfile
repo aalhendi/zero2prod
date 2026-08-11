@@ -1,4 +1,4 @@
-FROM rust:1.81.0-alpine AS base
+FROM rust:1.97.1-alpine AS base
 # ca-certificates - needed to verify TLS certificates when establishing HTTPS connections 
 RUN apk add --no-cache musl-dev ca-certificates 
 
