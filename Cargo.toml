@@ -39,18 +39,18 @@ tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }
 tracing-bunyan-formatter = "0.3"
 tracing-log = "0.2"
 tracing-actix-web = "0.7"
-tracing-opentelemetry = { version = "0.30", optional = true }
-opentelemetry = { version = "0.29", optional = true }
-opentelemetry_sdk = { version = "0.29", features = [
-    "rt-tokio",
-], optional = true }
-opentelemetry-appender-tracing = { version = "0.29", optional = true }
-opentelemetry-otlp = { version = "0.29", features = [
+tracing-opentelemetry = { version = "0.33", optional = true }
+opentelemetry = { version = "0.32", optional = true }
+opentelemetry_sdk = { version = "0.32", optional = true }
+opentelemetry-appender-tracing = { version = "0.32", optional = true }
+opentelemetry-otlp = { version = "0.32", default-features = false, features = [
     "trace",
+    "logs",
+    "internal-logs",
     "http-proto",
-    "reqwest-client",
+    "reqwest-blocking-client",
 ], optional = true }
-opentelemetry-semantic-conventions = { version = "0.29", features = [
+opentelemetry-semantic-conventions = { version = "0.32", features = [
     "semconv_experimental",
 ], optional = true }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

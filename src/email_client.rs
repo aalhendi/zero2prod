@@ -1,6 +1,5 @@
 use reqwest::{Client, Url};
 use secrecy::{ExposeSecret, SecretString};
-use std::sync::Once;
 
 use crate::domain::SubscriberEmail;
 
@@ -18,7 +17,7 @@ impl EmailClient {
         authorization_token: SecretString,
         timeout: std::time::Duration,
     ) -> Self {
-        install_crypto_provider();
+        crate::install_ring_crypto_provider();
 
         Self {
             http_client: Client::builder()
@@ -62,16 +61,6 @@ impl EmailClient {
 
         Ok(())
     }
-}
-
-fn install_crypto_provider() {
-    static INSTALL_CRYPTO_PROVIDER: Once = Once::new();
-
-    INSTALL_CRYPTO_PROVIDER.call_once(|| {
-        rustls::crypto::ring::default_provider()
-            .install_default()
-            .expect("Failed to install the Ring crypto provider");
-    });
 }
 
 #[derive(serde::Serialize)]

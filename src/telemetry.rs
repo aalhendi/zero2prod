@@ -77,6 +77,8 @@ pub fn add_otel_to_subscriber<S>(
 where
     S: Subscriber + for<'span> LookupSpan<'span> + Send + Sync,
 {
+    crate::install_ring_crypto_provider();
+
     let meter_provider = SdkMeterProvider::default();
     let tracer_provider = init_tracer(settings);
     let otel_trace_layer =
