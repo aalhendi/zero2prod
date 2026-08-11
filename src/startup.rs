@@ -48,7 +48,7 @@ impl Application {
             email_client,
             configuration.application.base_url,
             HmacSecret(configuration.application.hmac_secret),
-            configuration.redis_uri,
+            configuration.valkey_uri,
             configuration.auth.pepper,
         )
         .await?;
@@ -81,7 +81,7 @@ async fn run(
     email_client: EmailClient,
     base_url: String,
     hmac_secret: HmacSecret,
-    redis_uri: SecretString,
+    valkey_uri: SecretString,
     pepper: SecretString,
 ) -> Result<Server, anyhow::Error> {
     // Wrap the connection in a smart pointer (Arc)
@@ -93,7 +93,8 @@ async fn run(
     let secret_key = Key::from(hmac_secret.expose().as_bytes());
     let message_store = CookieMessageStore::builder(secret_key.clone()).build();
     let message_framework = FlashMessagesFramework::builder(message_store).build();
-    let redis_store = RedisSessionStore::new(redis_uri.expose_secret()).await?;
+    // NOTE(aalhendi): Actix retains the Redis type name; its underlying client supports Valkey.
+    let session_store = RedisSessionStore::new(valkey_uri.expose_secret()).await?;
 
     // Handles all *transport level* concerns
     /*
@@ -108,7 +109,7 @@ async fn run(
             .wrap(message_framework.clone())
             // Handles loading session data, tracking state changes + persisting them at end of request/response lifecycle
             .wrap(SessionMiddleware::new(
-                redis_store.clone(),
+                session_store.clone(),
                 secret_key.clone(),
             ))
             // Using drop in replacement for actix::middleware::Logger that knows how to handle the tracing crate (tracing-aware)

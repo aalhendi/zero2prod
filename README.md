@@ -4,7 +4,7 @@ A Rust-based newsletter email service with PostgreSQL backend and OpenTelemetry 
 
 ## Quick Start
 
-1. Start PostgreSQL and Redis, then run the database migrations:
+1. Start PostgreSQL and Valkey, then run the database migrations:
 
    ```sh
    docker compose up --detach --wait
@@ -28,7 +28,7 @@ To discard the local database as well, run `docker compose down --volumes`.
 ## Features
 
 - PostgreSQL database backend
-- Redis integration
+- Valkey-backed session storage
 - OpenTelemetry support via OpenObserve (optional)
 - Comprehensive test coverage
 - CI/CD pipeline with security audit

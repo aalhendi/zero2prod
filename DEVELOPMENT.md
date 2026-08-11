@@ -56,7 +56,7 @@ This preparation is checked in the CI pipeline.
 
 ## Development Workflow
 
-1. Start PostgreSQL and Redis and wait for them to become healthy:
+1. Start PostgreSQL and Valkey and wait for them to become healthy:
 
    ```sh
    docker compose up --detach --wait

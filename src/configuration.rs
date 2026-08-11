@@ -16,7 +16,7 @@ pub struct Settings {
     pub application: ApplicationSettings,
     pub email_client: EmailClientSettings,
     // URI marked as secret because it may embed a password
-    pub redis_uri: SecretString,
+    pub valkey_uri: SecretString,
     pub otel: OpenTelemetrySettings,
     pub auth: AuthSettings,
 }

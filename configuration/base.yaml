@@ -12,7 +12,7 @@ email_client:
   sender_email: "test@example.com"
   authorization_token: "my-secret-token"
   timeout_milliseconds: 10000
-redis_uri: "redis://127.0.0.1:6379" # base port for redis
+valkey_uri: "valkey://127.0.0.1:6379"
 otel:
   auth_token: "cm9vdEBleGFtcGxlLmNvbTpDb21wbGV4cGFzcyMxMjM="
   port: 5080
