@@ -4,6 +4,7 @@ on: [push, pull_request]
 
 env:
   CARGO_TERM_COLOR: always
+  DATABASE_URL: postgres://postgres:password@127.0.0.1:5432/newsletter
   # TODO(aalhendi): Use a project-owned lockfile for reproducible sqlx-cli installations.
   SQLX_VERSION: 0.9.0
   SQLX_FEATURES: "rustls,postgres"
@@ -12,34 +13,6 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    services:
-      # Label used to access the service container
-      postgres:
-        # Docker Hub image
-        image: postgres:18.4-alpine
-        # Environment variables scoped only for the `postgres` element
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: newsletter
-        # When you map ports using the ports keyword, GitHub uses the --publish command to publish the container’s ports to the Docker host
-        # Opens tcp port 5432 on the host and service container
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d newsletter"
-          --health-interval 1s
-          --health-timeout 5s
-          --health-retries 10
-      valkey:
-        image: valkey/valkey:9.1.1-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "valkey-cli ping"
-          --health-interval 1s
-          --health-timeout 5s
-          --health-retries 10
     steps:
       # Downloads a copy of the code in your repository before running CI tests
       - name: Check out repository code
@@ -47,6 +20,9 @@ jobs:
         # This is an action that checks out your repository onto the runner, allowing you to run scripts or other actions against your code (such as build and test tools).
         # You should use the checkout action any time your workflow will run against the repository's code.
         uses: actions/checkout@v4
+
+      - name: Start dependencies
+        run: docker compose up --detach --wait postgres valkey
 
       # This GitHub Action installs a Rust toolchain using rustup. It is designed for one-line concise usage and good defaults.
       # It also takes care of caching intermediate build artifacts.
@@ -99,32 +75,11 @@ jobs:
   coverage:
     name: Code coverage
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:18.4-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: newsletter
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d newsletter"
-          --health-interval 1s
-          --health-timeout 5s
-          --health-retries 10
-      valkey:
-        image: valkey/valkey:9.1.1-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "valkey-cli ping"
-          --health-interval 1s
-          --health-timeout 5s
-          --health-retries 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Start dependencies
+        run: docker compose up --detach --wait postgres valkey
       - name: Install the Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
