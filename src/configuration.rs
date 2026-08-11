@@ -107,6 +107,17 @@ pub struct OpenTelemetrySettings {
 }
 
 impl OpenTelemetrySettings {
+    #[cfg(all(test, feature = "open-telemetry"))]
+    pub(crate) fn for_test(base_url: String, port: u16, auth_token: SecretString) -> Self {
+        Self {
+            port,
+            base_url,
+            trace_endpoint: String::from("/api/default/v1/traces"),
+            log_endpoint: String::from("/api/default/v1/logs"),
+            auth_token,
+        }
+    }
+
     pub fn trace_full_url(&self) -> String {
         format!(
             "{base_url}:{port}{endpoint}",

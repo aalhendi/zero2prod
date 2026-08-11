@@ -117,17 +117,24 @@ OpenTelemetry support is available as an optional feature. To use it:
 
 ### Local Setup
 
-1. Start a local OpenObserve instance:
+1. Start OpenObserve alongside the other local services:
 
    ```sh
-   docker run -v $PWD/logs:/logs -e ZO_DATA_DIR="/logs" -p 5080:5080 \
-       -e ZO_ROOT_USER_EMAIL="root@example.com" -e ZO_ROOT_USER_PASSWORD="Complexpass#123" \
-       public.ecr.aws/zinclabs/openobserve:v0.13.1
+   docker compose --profile observability up --detach --wait
    ```
 
-2. Add your authentication token to the configuration
+   OpenObserve is available at <http://localhost:5080> using the local development
+   credentials in `compose.yaml`. Its data is stored in the `openobserve_data` Docker
+   volume.
+
+2. Verify that OpenObserve is ready:
+
+   ```sh
+   curl --fail http://localhost:5080/healthz
+   ```
 
 3. Run the application with OpenTelemetry enabled:
+
    ```sh
    cargo run --features "open-telemetry"
    ```

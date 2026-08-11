@@ -164,3 +164,53 @@ fn init_logger(settings: &OpenTelemetrySettings) -> SdkLoggerProvider {
         .with_batch_exporter(exporter)
         .build()
 }
+
+#[cfg(all(test, feature = "open-telemetry"))]
+mod tests {
+    use secrecy::SecretString;
+    use tracing::subscriber::with_default;
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{header, method, path},
+    };
+
+    use super::{add_otel_to_subscriber, get_subscriber};
+    use crate::configuration::OpenTelemetrySettings;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn exports_traces_and_logs_over_otlp_http() {
+        let mock_server = MockServer::start().await;
+        let settings = OpenTelemetrySettings::for_test(
+            format!("http://{}", mock_server.address().ip()),
+            mock_server.address().port(),
+            SecretString::from("test-token"),
+        );
+
+        for endpoint in ["/api/default/v1/traces", "/api/default/v1/logs"] {
+            Mock::given(method("POST"))
+                .and(path(endpoint))
+                .and(header("authorization", "Basic test-token"))
+                .and(header("content-type", "application/x-protobuf"))
+                .respond_with(ResponseTemplate::new(200))
+                .expect(1)
+                .mount(&mock_server)
+                .await;
+        }
+
+        let subscriber = get_subscriber(
+            String::from("telemetry-test"),
+            String::from("info"),
+            std::io::sink,
+        );
+        let (subscriber, guard) = add_otel_to_subscriber(subscriber, &settings);
+
+        with_default(subscriber, || {
+            let span = tracing::info_span!("telemetry_test_span");
+            let _entered = span.enter();
+            tracing::info!(message = "telemetry test log");
+        });
+
+        // Provider shutdown flushes the batch exporters before WireMock checks its expectations.
+        drop(guard);
+    }
+}

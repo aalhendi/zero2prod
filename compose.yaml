@@ -30,5 +30,19 @@ services:
       retries: 10
       start_period: 5s
 
+  openobserve:
+    image: public.ecr.aws/zinclabs/openobserve:v0.90.3
+    profiles: ["observability"]
+    environment:
+      ZO_DATA_DIR: /data
+      ZO_ROOT_USER_EMAIL: root@example.com
+      ZO_ROOT_USER_PASSWORD: Complexpass#123
+      ZO_TELEMETRY: "false"
+    ports:
+      - "127.0.0.1:${OPENOBSERVE_PORT:-5080}:5080"
+    volumes:
+      - openobserve_data:/data
+
 volumes:
+  openobserve_data:
   postgres_data:
